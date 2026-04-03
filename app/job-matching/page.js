@@ -4,41 +4,23 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Briefcase, DollarSign, Filter, MapPin, Sparkles, Star, Target, TrendingUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { getMatchTone, scoreJobForSeeker } from '@/lib/jobMatching'
 import { Badge, Card, Spinner } from '@/components/ui/Components'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
-function normalizeSkills(value) {
-  if (Array.isArray(value)) return value.map(item => String(item).trim()).filter(Boolean)
-  if (typeof value === 'string') return value.split(',').map(item => item.trim()).filter(Boolean)
-  return []
-}
-
-function scoreJob(job, profile) {
-  const text = `${job.title || ''} ${job.description || ''} ${job.requirements || ''}`.toLowerCase()
-  const location = String(job.location || '').toLowerCase()
-  const skills = normalizeSkills(profile?.skills).map(skill => skill.toLowerCase())
-  let score = 20
-
-  skills.forEach(skill => {
-    if (text.includes(skill)) score += 12
-  })
-
-  if (profile?.headline && text.includes(String(profile.headline).toLowerCase())) score += 15
-  if (profile?.location && location.includes(String(profile.location).toLowerCase())) score += 20
-  if (job.type && profile?.job_type_preference && job.type === profile.job_type_preference) score += 10
-
-  return Math.min(score, 100)
-}
-
 export default function JobMatchingPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [jobs, setJobs] = useState([])
   const [profile, setProfile] = useState(null)
+  const [seekerProfile, setSeekerProfile] = useState(null)
+  const [applications, setApplications] = useState([])
+  const [savedJobs, setSavedJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
     search: '',
-    type: '',
+    jobType: '',
+    workModel: '',
     location: '',
     minSalary: '',
   })
@@ -49,35 +31,63 @@ export default function JobMatchingPage() {
       const { data: sessionData } = await supabase.auth.getSession()
       const userId = sessionData?.session?.user?.id
 
-      const [jobsResponse, profileResponse] = await Promise.all([
+      const [jobsResponse, profileResponse, seekerProfileResponse, applicationsResponse, savedJobsResponse] = await Promise.all([
         supabase.from('jobs').select('*').order('created_at', { ascending: false }),
         userId ? supabase.from('profiles').select('*').eq('id', userId).single() : Promise.resolve({ data: null }),
+        userId ? supabase.from('seeker_profiles').select('*').eq('id', userId).single() : Promise.resolve({ data: null }),
+        userId ? supabase.from('applications').select('job_id').eq('seeker_id', userId) : Promise.resolve({ data: [] }),
+        userId ? supabase.from('saved_jobs').select('job_id').eq('seeker_id', userId) : Promise.resolve({ data: [] }),
       ])
 
       setJobs(jobsResponse.data || [])
       setProfile(profileResponse?.data || null)
+      setSeekerProfile(seekerProfileResponse?.data || null)
+      setApplications(applicationsResponse?.data || [])
+      setSavedJobs(savedJobsResponse?.data || [])
       setLoading(false)
     }
 
     loadData()
   }, [supabase])
 
+  const appliedJobIds = useMemo(() => applications.map(application => application.job_id), [applications])
+  const savedJobIds = useMemo(() => savedJobs.map(saved => saved.job_id), [savedJobs])
+
   const matchedJobs = useMemo(() => {
     return jobs
-      .map(job => ({ ...job, matchScore: scoreJob(job, profile) }))
+      .map(job => {
+        const recommendation = scoreJobForSeeker(job, {
+          profile,
+          seekerProfile,
+          appliedJobIds,
+          savedJobIds,
+        })
+
+        return {
+          ...job,
+          matchScore: recommendation.score,
+          matchedSkills: recommendation.matchedSkills,
+          matchReasons: recommendation.reasons,
+          matchBreakdown: recommendation.breakdown,
+          hasApplied: appliedJobIds.includes(job.id),
+        }
+      })
       .sort((a, b) => b.matchScore - a.matchScore)
-  }, [jobs, profile])
+  }, [appliedJobIds, jobs, profile, savedJobIds, seekerProfile])
 
   const filteredJobs = useMemo(() => {
     return matchedJobs.filter(job => {
+      const salaryFloor = Number(job.salary_min || job.salary_max || 0)
       const matchesSearch =
         !filters.search ||
         String(job.title || '').toLowerCase().includes(filters.search.toLowerCase()) ||
-        String(job.description || '').toLowerCase().includes(filters.search.toLowerCase())
-      const matchesType = !filters.type || String(job.type || '') === filters.type
+        String(job.description || '').toLowerCase().includes(filters.search.toLowerCase()) ||
+        String(job.requirements || '').toLowerCase().includes(filters.search.toLowerCase())
+      const matchesType = !filters.jobType || String(job.job_type || '') === filters.jobType
+      const matchesWorkModel = !filters.workModel || String(job.work_model || '') === filters.workModel
       const matchesLocation = !filters.location || String(job.location || '').toLowerCase().includes(filters.location.toLowerCase())
-      const matchesSalary = !filters.minSalary || Number(job.salary || 0) >= Number(filters.minSalary)
-      return matchesSearch && matchesType && matchesLocation && matchesSalary
+      const matchesSalary = !filters.minSalary || salaryFloor >= Number(filters.minSalary)
+      return matchesSearch && matchesType && matchesWorkModel && matchesLocation && matchesSalary
     })
   }, [filters, matchedJobs])
 
@@ -85,12 +95,6 @@ export default function JobMatchingPage() {
   const averageScore = filteredJobs.length
     ? Math.round(filteredJobs.reduce((total, job) => total + job.matchScore, 0) / filteredJobs.length)
     : 0
-
-  const getMatchTone = score => {
-    if (score >= 75) return { label: 'Excellent Match', variant: 'green' }
-    if (score >= 50) return { label: 'Good Match', variant: 'blue' }
-    return { label: 'Potential Match', variant: 'yellow' }
-  }
 
   if (loading) {
     return (
@@ -171,14 +175,22 @@ export default function JobMatchingPage() {
           </div>
           <div className="grid gap-4 md:grid-cols-4">
             <Input label="Search" value={filters.search} onChange={e => setFilters(current => ({ ...current, search: e.target.value }))} placeholder="Role or keyword" />
-            <Input label="Job Type" as="select" value={filters.type} onChange={e => setFilters(current => ({ ...current, type: e.target.value }))}>
+            <Input label="Job Type" as="select" value={filters.jobType} onChange={e => setFilters(current => ({ ...current, jobType: e.target.value }))}>
               <option value="">All types</option>
-              <option value="Full-time">Full-time</option>
-              <option value="Part-time">Part-time</option>
-              <option value="Contract">Contract</option>
-              <option value="Remote">Remote</option>
+              <option value="full_time">Full-time</option>
+              <option value="part_time">Part-time</option>
+              <option value="contract">Contract</option>
+              <option value="internship">Internship</option>
+            </Input>
+            <Input label="Work Model" as="select" value={filters.workModel} onChange={e => setFilters(current => ({ ...current, workModel: e.target.value }))}>
+              <option value="">All models</option>
+              <option value="on_site">On-site</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
             </Input>
             <Input label="Location" value={filters.location} onChange={e => setFilters(current => ({ ...current, location: e.target.value }))} placeholder="Manama, Bahrain" />
+          </div>
+          <div className="mt-4 max-w-xs">
             <Input label="Minimum Salary" type="number" value={filters.minSalary} onChange={e => setFilters(current => ({ ...current, minSalary: e.target.value }))} prefix="BHD" />
           </div>
         </Card>
@@ -186,9 +198,6 @@ export default function JobMatchingPage() {
         <div className="space-y-5">
           {filteredJobs.map(job => {
             const match = getMatchTone(job.matchScore)
-            const matchedSkills = normalizeSkills(profile?.skills).filter(skill =>
-              `${job.title || ''} ${job.description || ''} ${job.requirements || ''}`.toLowerCase().includes(skill.toLowerCase())
-            )
 
             return (
               <Card key={job.id}>
@@ -208,17 +217,27 @@ export default function JobMatchingPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-[#00cffd]" />
-                        {job.salary ? `${job.salary} BHD` : 'Salary not listed'}
+                        {job.salary_min || job.salary_max
+                          ? `${job.salary_min || job.salary_max} - ${job.salary_max || job.salary_min} BHD`
+                          : 'Salary not listed'}
                       </div>
                       <div className="flex items-center gap-2">
                         <Briefcase className="h-4 w-4 text-[#00cffd]" />
-                        {job.type || 'Open role'}
+                        {String(job.job_type || 'Open role').replace('_', ' ')}
                       </div>
                     </div>
 
-                    {matchedSkills.length > 0 && (
+                    {job.matchReasons?.length > 0 && (
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {matchedSkills.slice(0, 4).map(skill => (
+                        {job.matchReasons.map(reason => (
+                          <Badge key={reason} variant="blue">{reason}</Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {job.matchedSkills?.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {job.matchedSkills.slice(0, 4).map(skill => (
                           <Badge key={skill} variant="cyan">{skill}</Badge>
                         ))}
                       </div>
@@ -227,7 +246,7 @@ export default function JobMatchingPage() {
 
                   <div className="flex w-full flex-col gap-3 lg:w-48">
                     <Button href={`/jobs/${job.id}`}>View Details</Button>
-                    <Button href="/jobs" variant="outline">Browse All Jobs</Button>
+                    <Button href="/jobs" variant="outline">{job.hasApplied ? 'Already Applied' : 'Browse All Jobs'}</Button>
                   </div>
                 </div>
               </Card>

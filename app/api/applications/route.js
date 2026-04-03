@@ -1,4 +1,5 @@
 import { createRouteClient } from '@/lib/supabaseServer'
+import { scoreJobForSeeker } from '@/lib/jobMatching'
 
 /**
  * GET /api/applications
@@ -61,7 +62,10 @@ export async function POST(request) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data: profile } = await supabase.from('profiles').select('role, skills').eq('id', session.user.id).single()
+    const [{ data: profile }, { data: seekerProfile }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', session.user.id).single(),
+      supabase.from('seeker_profiles').select('*').eq('id', session.user.id).single(),
+    ])
     if (profile?.role !== 'seeker') return Response.json({ error: 'Only job seekers can apply' }, { status: 403 })
 
     const { job_id, cover_letter, cv_url } = await request.json()
@@ -72,18 +76,23 @@ export async function POST(request) {
     if (existing) return Response.json({ error: 'Already applied to this job' }, { status: 409 })
 
     // Fetch job skills to compute AI match score
-    const { data: job } = await supabase.from('jobs').select('title, skills_required').eq('id', job_id).single()
+    const { data: job } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('id', job_id)
+      .single()
 
-    // Simple skill-overlap match score
-    const jobSkills = job?.skills_required || []
-    const candidateSkills = profile?.skills || []
-    const overlap = jobSkills.filter(s => candidateSkills.includes(s)).length
-    const matchScore = jobSkills.length > 0 ? Math.round((overlap / jobSkills.length) * 100) : 50
+    const recommendation = scoreJobForSeeker(job, {
+      profile,
+      seekerProfile,
+      appliedJobIds: [],
+      savedJobIds: [],
+    })
 
     const { data, error } = await supabase.from('applications').insert({
       job_id, seeker_id: session.user.id,
       cover_letter, cv_url,
-      ai_match_score: matchScore,
+      ai_match_score: recommendation.score,
       status: 'pending',
     }).select().single()
 

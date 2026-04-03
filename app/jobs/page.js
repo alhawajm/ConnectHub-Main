@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Search, MapPin, Briefcase, DollarSign, Building2, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
@@ -39,41 +39,89 @@ const JOB_TYPES = [
   ['internship', 'Internship'],
 ]
 
+const WORK_MODELS = [
+  ['all', 'All Models'],
+  ['on_site', 'On-Site'],
+  ['remote', 'Remote'],
+  ['hybrid', 'Hybrid'],
+]
+
+const SORT_OPTIONS = [
+  ['newest', 'Newest First'],
+  ['oldest', 'Oldest First'],
+  ['salary_high', 'Highest Salary'],
+  ['salary_low', 'Lowest Salary'],
+  ['title', 'Title A-Z'],
+]
+
 export default function JobSearchPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [jobs, setJobs] = useState([])
   const [search, setSearch] = useState('')
   const [location, setLocation] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [workModelFilter, setWorkModelFilter] = useState('all')
+  const [minSalary, setMinSalary] = useState('')
+  const [sortBy, setSortBy] = useState('newest')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchJobs = async () => {
       setLoading(true)
 
-      let query = supabase
+      const { data } = await supabase
         .from('jobs')
         .select('*, profiles!jobs_employer_id_fkey(full_name, employer_profiles(company_name, company_logo))')
         .eq('status', 'active')
         .order('created_at', { ascending: false })
+        .limit(60)
 
-      if (search) {
-        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
-      }
-      if (location) {
-        query = query.ilike('location', `%${location}%`)
-      }
-      if (typeFilter !== 'all') {
-        query = query.eq('job_type', typeFilter)
-      }
-
-      const { data } = await query.limit(30)
       setJobs(data || [])
       setLoading(false)
     }
 
     fetchJobs()
-  }, [location, search, supabase, typeFilter])
+  }, [supabase])
+
+  const filteredJobs = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+    const normalizedLocation = location.trim().toLowerCase()
+    const minimumSalary = Number(minSalary || 0)
+
+    const filtered = jobs.filter(job => {
+      const companyName = job.profiles?.employer_profiles?.company_name || job.profiles?.full_name || ''
+      const haystack = `${job.title || ''} ${job.description || ''} ${job.requirements || ''} ${companyName}`.toLowerCase()
+      const jobLocation = String(job.location || '').toLowerCase()
+      const salaryFloor = Number(job.salary_min || job.salary_max || 0)
+
+      const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch)
+      const matchesLocation = !normalizedLocation || jobLocation.includes(normalizedLocation)
+      const matchesType = typeFilter === 'all' || job.job_type === typeFilter
+      const matchesWorkModel = workModelFilter === 'all' || job.work_model === workModelFilter
+      const matchesSalary = !minimumSalary || salaryFloor >= minimumSalary
+
+      return matchesSearch && matchesLocation && matchesType && matchesWorkModel && matchesSalary
+    })
+
+    return filtered.sort((a, b) => {
+      const aSalary = Number(a.salary_max || a.salary_min || 0)
+      const bSalary = Number(b.salary_max || b.salary_min || 0)
+
+      switch (sortBy) {
+        case 'oldest':
+          return new Date(a.created_at) - new Date(b.created_at)
+        case 'salary_high':
+          return bSalary - aSalary
+        case 'salary_low':
+          return aSalary - bSalary
+        case 'title':
+          return String(a.title || '').localeCompare(String(b.title || ''))
+        case 'newest':
+        default:
+          return new Date(b.created_at) - new Date(a.created_at)
+      }
+    })
+  }, [jobs, location, minSalary, search, sortBy, typeFilter, workModelFilter])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
@@ -102,7 +150,7 @@ export default function JobSearchPage() {
         </div>
 
         <div className="surface-card-strong p-6 mb-8">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="md:col-span-2 relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#00cffd]" />
               <input
@@ -127,6 +175,34 @@ export default function JobSearchPage() {
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
+            <select
+              value={workModelFilter}
+              onChange={(e) => setWorkModelFilter(e.target.value)}
+              className="public-input"
+            >
+              {WORK_MODELS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <input
+              placeholder="Minimum salary (BHD)"
+              type="number"
+              min="0"
+              value={minSalary}
+              onChange={(e) => setMinSalary(e.target.value)}
+              className="public-input"
+            />
+          </div>
+          <div className="mt-4 flex flex-col gap-3 border-t border-[rgba(0,207,253,0.1)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-500 dark:text-gray-400">{filteredJobs.length} job{filteredJobs.length === 1 ? '' : 's'} found</p>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Sort by</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="public-input min-w-[180px]">
+                {SORT_OPTIONS.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -134,7 +210,7 @@ export default function JobSearchPage() {
           <div className="flex justify-center py-12"><Spinner /></div>
         ) : (
           <div className="grid gap-4">
-            {jobs.map((job) => (
+            {filteredJobs.map((job) => (
               <div key={job.id} className="surface-card p-6 transition-all hover:border-[#00cffd]/30 hover:shadow-lg">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -190,7 +266,7 @@ export default function JobSearchPage() {
               </div>
             ))}
 
-            {jobs.length === 0 && (
+            {filteredJobs.length === 0 && (
               <div className="surface-card text-center py-16">
                 <Search className="h-12 w-12 text-[#00cffd]/30 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No jobs found</h3>

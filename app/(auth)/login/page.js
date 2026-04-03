@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { Badge, Card } from '@/components/ui/Components'
+import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
@@ -35,7 +36,7 @@ export default function LoginPage() {
       if (authError) throw authError
 
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-      router.push(`/dashboard/${profile?.role || 'seeker'}`)
+      router.push(profile?.role ? `/dashboard/${profile.role}` : '/auth/role')
       router.refresh()
     } catch (err) {
       setError(err.message || 'Invalid email or password.')
@@ -83,6 +84,10 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+
+          <div className="mb-5">
+            <SocialAuthButtons mode="login" onError={setError} />
+          </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="relative">

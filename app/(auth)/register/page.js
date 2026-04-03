@@ -1,8 +1,10 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Briefcase, Users, Laptop, ChevronRight, Check } from 'lucide-react'
+import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
 
 const ROLES = [
   { id: 'employer',   icon: Briefcase, title: 'Employer',    description: 'Post jobs and hire talent for your company' },
@@ -112,6 +114,10 @@ export default function RegisterPage() {
                 <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600">{error}</div>
               )}
 
+              <div className="mb-5">
+                <SocialAuthButtons mode="register" role={role} nextPath={`/dashboard/${role}`} onError={setError} />
+              </div>
+
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Full Name</label>
@@ -141,7 +147,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-sm text-gray-400 mt-5">
           Already have an account?{' '}
-          <a href="/login" className="text-[#0099cc] font-semibold hover:underline">Sign in</a>
+          <Link href="/login" className="text-[#0099cc] font-semibold hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

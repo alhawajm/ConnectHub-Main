@@ -37,6 +37,7 @@ export default function AdminDashboard() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [disputeActionId, setDisputeActionId] = useState('')
 
   useEffect(() => {
     const loadSession = async () => {
@@ -75,7 +76,7 @@ export default function AdminDashboard() {
           supabase.from('profiles').select('*'),
           supabase.from('applications').select('*'),
           supabase.from('projects').select('*'),
-          supabase.from('disputes').select('*'),
+          supabase.from('disputes').select('*, contracts(title, client_id, freelancer_id)'),
         ])
 
         const jobsData = jobsResult.data || []
@@ -116,6 +117,30 @@ export default function AdminDashboard() {
 
     fetchData()
   }, [supabase, user])
+
+  const refreshDisputes = async () => {
+    const { data } = await supabase.from('disputes').select('*, contracts(title, client_id, freelancer_id)')
+    const disputesData = data || []
+    setDisputes(disputesData.filter(item => item.status === 'open' || item.status === 'under_review'))
+  }
+
+  const resolveDispute = async (disputeId, resolutionAction) => {
+    setDisputeActionId(`${disputeId}:${resolutionAction}`)
+    try {
+      const response = await fetch('/api/freelance/workflow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resolve_dispute', disputeId, resolutionAction }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Could not resolve dispute.')
+      await refreshDisputes()
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setDisputeActionId('')
+    }
+  }
 
   if (loading || loadingData) {
     return (
@@ -338,10 +363,11 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm font-semibold text-gray-900">{item.reason || 'Dispute'}</p>
                       <p className="text-sm text-gray-500 mt-1">{item.details || 'Pending review'}</p>
+                      <p className="text-xs text-gray-400 mt-2">{item.contracts?.title || 'Contract'}{item.amount_disputed ? ` · BD ${Number(item.amount_disputed).toLocaleString('en-BH')}` : ''}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline">Release Funds</Button>
-                      <Button size="sm" variant="outline" className="text-red-700 border-red-300 hover:bg-red-50">Refund</Button>
+                      <Button size="sm" variant="outline" loading={disputeActionId === `${item.id}:release`} onClick={() => resolveDispute(item.id, 'release')}>Release Funds</Button>
+                      <Button size="sm" variant="outline" loading={disputeActionId === `${item.id}:refund`} onClick={() => resolveDispute(item.id, 'refund')} className="text-red-700 border-red-300 hover:bg-red-50">Refund</Button>
                     </div>
                   </div>
                 ))}

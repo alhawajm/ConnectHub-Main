@@ -14,6 +14,10 @@ import {
   Wallet,
 } from 'lucide-react'
 
+const demoGuideEnabled =
+  process.env.NEXT_PUBLIC_ENABLE_DEMO_GUIDE === 'true' ||
+  process.env.NEXT_PUBLIC_APP_URL?.includes('localhost')
+
 const features = [
   {
     icon: Briefcase,
@@ -396,14 +400,34 @@ export default function HomePage() {
                     <span>support@connecthub.bh</span>
                     <span>Manama, Bahrain</span>
                   </div>
+                  {demoGuideEnabled && (
+                    <div className="mt-8 grid gap-4 md:grid-cols-2">
+                      <div className="rounded-2xl border border-white/25 bg-white/10 p-4 backdrop-blur">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">Production Path</p>
+                        <p className="mt-2 font-display text-xl font-bold">Standard product experience</p>
+                        <p className="mt-2 text-sm text-white/85">
+                          Best for real users who want the regular jobs, freelance, hiring, and services journey.
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/25 bg-[#0b1728]/20 p-4 backdrop-blur">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">Demo Path</p>
+                        <p className="mt-2 font-display text-xl font-bold">Guided walkthrough mode</p>
+                        <p className="mt-2 text-sm text-white/85">
+                          Best for presentations with short role-based journeys for employer, seeker, freelancer, and admin.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-3 lg:flex-col">
                   <Link href="/register" className="inline-flex h-11 items-center justify-center rounded-lg bg-white px-6 text-base font-semibold text-[#0099cc] shadow-lg transition-all hover:bg-white/90">
                     Create Account
                   </Link>
-                  <Link href="/test-accounts" className="inline-flex h-11 items-center justify-center rounded-lg border border-white/40 px-6 text-base font-semibold text-white transition-all hover:bg-white/10">
-                    Test Accounts
-                  </Link>
+                  {demoGuideEnabled && (
+                    <Link href="/test-accounts" className="inline-flex h-11 items-center justify-center rounded-lg border border-white/40 px-6 text-base font-semibold text-white transition-all hover:bg-white/10">
+                      Open Demo
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Briefcase, Clock3, FolderPlus, Search, Sparkles } from 'lucide-react'
+import { Briefcase, Clock3, FolderPlus, MapPin, Search, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { Badge, Card, Modal, Spinner, useToast } from '@/components/ui/Components'
 import Button from '@/components/ui/Button'
@@ -16,8 +16,29 @@ const categories = [
   'Data',
 ]
 
+const budgetTypes = [
+  ['all', 'All Budgets'],
+  ['fixed', 'Fixed Price'],
+  ['hourly', 'Hourly'],
+]
+
+const experienceLevels = [
+  ['all', 'All Levels'],
+  ['entry', 'Entry'],
+  ['mid', 'Mid'],
+  ['senior', 'Senior'],
+]
+
+const projectSortOptions = [
+  ['newest', 'Newest First'],
+  ['oldest', 'Oldest First'],
+  ['budget_high', 'Highest Budget'],
+  ['budget_low', 'Lowest Budget'],
+  ['title', 'Title A-Z'],
+]
+
 export default function FreelancePage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const toast = useToast()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,6 +46,11 @@ export default function FreelancePage() {
   const [filters, setFilters] = useState({
     search: '',
     category: '',
+    budgetType: 'all',
+    experienceLevel: 'all',
+    location: '',
+    minBudget: '',
+    sortBy: 'newest',
   })
   const [form, setForm] = useState({
     title: '',
@@ -40,7 +66,7 @@ export default function FreelancePage() {
     async function loadProjects() {
       const { data } = await supabase
         .from('projects')
-        .select('*')
+        .select('*, profiles!projects_client_id_fkey(full_name, location)')
         .order('created_at', { ascending: false })
 
       setProjects(data || [])
@@ -51,11 +77,40 @@ export default function FreelancePage() {
   }, [supabase])
 
   const filteredProjects = useMemo(() => {
-    return projects.filter(project => {
-      const haystack = `${project.title || ''} ${project.description || ''}`.toLowerCase()
+    const normalizedSearch = filters.search.trim().toLowerCase()
+    const normalizedLocation = filters.location.trim().toLowerCase()
+    const minimumBudget = Number(filters.minBudget || 0)
+
+    const filtered = projects.filter(project => {
+      const haystack = `${project.title || ''} ${project.description || ''} ${(project.skills_required || []).join(' ')} ${project.profiles?.full_name || ''}`.toLowerCase()
+      const projectLocation = String(project.profiles?.location || '').toLowerCase()
+      const projectBudget = Number(project.budget_max || project.budget_min || 0)
       const matchesSearch = !filters.search || haystack.includes(filters.search.toLowerCase())
       const matchesCategory = !filters.category || String(project.category || '') === filters.category
-      return matchesSearch && matchesCategory
+      const matchesBudgetType = filters.budgetType === 'all' || String(project.budget_type || '') === filters.budgetType
+      const matchesExperience = filters.experienceLevel === 'all' || String(project.experience_level || '') === filters.experienceLevel
+      const matchesLocation = !normalizedLocation || projectLocation.includes(normalizedLocation)
+      const matchesBudget = !minimumBudget || projectBudget >= minimumBudget
+      return matchesSearch && matchesCategory && matchesBudgetType && matchesExperience && matchesLocation && matchesBudget
+    })
+
+    return filtered.sort((a, b) => {
+      const aBudget = Number(a.budget_max || a.budget_min || 0)
+      const bBudget = Number(b.budget_max || b.budget_min || 0)
+
+      switch (filters.sortBy) {
+        case 'oldest':
+          return new Date(a.created_at) - new Date(b.created_at)
+        case 'budget_high':
+          return bBudget - aBudget
+        case 'budget_low':
+          return aBudget - bBudget
+        case 'title':
+          return String(a.title || '').localeCompare(String(b.title || ''))
+        case 'newest':
+        default:
+          return new Date(b.created_at) - new Date(a.created_at)
+      }
     })
   }, [filters, projects])
 
@@ -125,7 +180,7 @@ export default function FreelancePage() {
           </Button>
         </div>
 
-        <div className="mb-8 grid gap-4 md:grid-cols-[1fr_220px]">
+        <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <Input label="Search Projects" value={filters.search} onChange={e => setFilters(current => ({ ...current, search: e.target.value }))} placeholder="Title, skill, or keyword" />
           <Input label="Category" as="select" value={filters.category} onChange={e => setFilters(current => ({ ...current, category: e.target.value }))}>
             <option value="">All categories</option>
@@ -133,6 +188,30 @@ export default function FreelancePage() {
               <option key={category} value={category}>{category}</option>
             ))}
           </Input>
+          <Input label="Client Location" value={filters.location} onChange={e => setFilters(current => ({ ...current, location: e.target.value }))} placeholder="Bahrain, Manama, Remote" />
+          <Input label="Budget Type" as="select" value={filters.budgetType} onChange={e => setFilters(current => ({ ...current, budgetType: e.target.value }))}>
+            {budgetTypes.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </Input>
+          <Input label="Experience Level" as="select" value={filters.experienceLevel} onChange={e => setFilters(current => ({ ...current, experienceLevel: e.target.value }))}>
+            {experienceLevels.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </Input>
+          <Input label="Minimum Budget" type="number" min="0" prefix="BHD" value={filters.minBudget} onChange={e => setFilters(current => ({ ...current, minBudget: e.target.value }))} />
+        </div>
+
+        <div className="mb-8 flex flex-col gap-3 border-b border-[rgba(0,207,253,0.1)] pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-gray-500 dark:text-gray-400">{filteredProjects.length} project{filteredProjects.length === 1 ? '' : 's'} available</p>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Sort by</span>
+            <Input as="select" value={filters.sortBy} onChange={e => setFilters(current => ({ ...current, sortBy: e.target.value }))}>
+              {projectSortOptions.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </Input>
+          </div>
         </div>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
@@ -180,6 +259,12 @@ export default function FreelancePage() {
                         {project.budget_min || project.budget_max ? `${project.budget_min || 0} - ${project.budget_max || 0} BHD` : 'Budget on request'}
                       </div>
                     </div>
+                    {project.profiles?.location && (
+                      <div className="mt-3 inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <MapPin className="h-3.5 w-3.5 text-[#00cffd]" />
+                        Client location: {project.profiles.location}
+                      </div>
+                    )}
                   </div>
                   <div className="flex w-full flex-col gap-3 lg:w-44">
                     <Button href={`/projects/${project.id}`}>View Details</Button>

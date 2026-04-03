@@ -7,11 +7,7 @@ import { ToastContainer } from '@/components/ui/Components'
 import { useNotifications } from '@/hooks/useUser'
 import {
   Bell, Moon, Sun, LogOut, Menu, X,
-  Settings, CreditCard, Home, Briefcase, Users, Plus,
-  BarChart2, MessageSquare, Search, Bookmark, Zap, User,
-  FolderOpen, GraduationCap, DollarSign, FileText, Scale,
-  Star, LayoutGrid, Crown, TrendingUp, PieChart, Lock,
-  Image, BookOpen, AlertCircle, CheckCircle,
+  Settings, CreditCard, LayoutGrid, CheckCircle,
 } from 'lucide-react'
 
 function NavIcon({ icon, className }) {
@@ -27,7 +23,7 @@ function NavIcon({ icon, className }) {
   return <LayoutGrid className={cn('h-4 w-4', className)} />
 }
 
-/* â”€â”€ Nav item â”€â”€ */
+/* Nav item */
 function NavItem({ icon, label, badge, badgeVariant = 'default', active, onClick }) {
   return (
     <button
@@ -55,7 +51,7 @@ function NavItem({ icon, label, badge, badgeVariant = 'default', active, onClick
   )
 }
 
-/* â”€â”€ Avatar â”€â”€ */
+/* Avatar */
 function Avatar({ name = '', size = 8 }) {
   const initials = name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('')
   const colors = [
@@ -76,7 +72,7 @@ function Avatar({ name = '', size = 8 }) {
   )
 }
 
-/* â”€â”€ Notification panel â”€â”€ */
+/* Notification panel */
 function NotifPanel({ notifications = [], onMarkAll, onClose }) {
   return (
     <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-[#0e1a2b] rounded-xl border border-[rgba(0,207,253,0.15)] shadow-2xl z-50 overflow-hidden animate-fade-in">
@@ -120,9 +116,7 @@ function NotifPanel({ notifications = [], onMarkAll, onClose }) {
   )
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   MAIN DASHBOARD LAYOUT
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* Main dashboard layout */
 export default function DashboardLayout({
   user, profile, navItems = [],
   activePage, onNavigate,
@@ -174,7 +168,7 @@ export default function DashboardLayout({
 
   // Plan badge
   const plan = profile?.plan
-  const planLabel = plan === 'platinum' ? 'ðŸ’Ž Platinum' : plan === 'gold' ? 'ðŸ¥‡ Gold' : plan === 'silver' ? 'ðŸ¥ˆ Silver' : 'Free'
+  const planLabel = plan === 'platinum' ? 'Platinum' : plan === 'gold' ? 'Gold' : plan === 'silver' ? 'Silver' : 'Free'
   const planClass = plan === 'platinum'
     ? 'bg-[rgba(0,207,253,0.1)] text-[#0099cc] border-[rgba(0,207,253,0.2)]'
     : plan === 'gold'
@@ -187,7 +181,7 @@ export default function DashboardLayout({
     <div className="dashboard-layout">
       <ToastContainer />
 
-      {/* â•â• App Header â€” spec: h-16, sticky, bg-white/95, backdrop-blur, shadow-sm â•â• */}
+      {/* App Header */}
       <header className="sticky top-0 z-50 flex h-16 w-full flex-shrink-0 items-center justify-between border-b bg-white/95 px-4 shadow-sm backdrop-blur dark:bg-[#0b1728]/95 md:px-6">
 
         {/* Left: menu + logo */}
@@ -277,10 +271,10 @@ export default function DashboardLayout({
         </div>
       </header>
 
-      {/* â•â• Shell â•â• */}
+      {/* Shell */}
       <div className="dashboard-shell">
 
-        {/* â•â• Sidebar â•â• */}
+        {/* Sidebar */}
         <aside className={cn(
           'dashboard-sidebar',
           // Mobile: slide in
@@ -336,7 +330,7 @@ export default function DashboardLayout({
           <div className="fixed inset-0 z-30 bg-black/30 lg:hidden" onClick={() => setMobileOpen(false)} />
         )}
 
-        {/* â•â• Main â•â• */}
+        {/* Main */}
         <main className="dashboard-main">
           {/* Inner topbar */}
           <div className="dashboard-topbar">

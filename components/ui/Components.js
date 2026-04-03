@@ -79,9 +79,13 @@ const STATUS_MAP = {
   open:        { label: 'Open',         v: 'green'  },
   in_progress: { label: 'In Progress',  v: 'cyan'   },
   completed:   { label: 'Completed',    v: 'blue'   },
+  submitted:   { label: 'Submitted',    v: 'yellow' },
+  approved:    { label: 'Approved',     v: 'blue'   },
   disputed:    { label: 'Disputed',     v: 'red'    },
   held:        { label: 'Held',         v: 'yellow' },
   released:    { label: 'Released',     v: 'green'  },
+  refunded:    { label: 'Refunded',     v: 'red'    },
+  cancelled:   { label: 'Cancelled',    v: 'gray'   },
   resolved:    { label: 'Resolved',     v: 'blue'   },
   under_review:{ label: 'Under Review', v: 'yellow' },
 }
