@@ -2,20 +2,44 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 
 const KNOWN_ROLES = ['employer', 'seeker', 'freelancer', 'admin']
+const PROTECTED_PATH_PREFIXES = ['/dashboard']
+const HISTORY_SENSITIVE_PATHS = ['/login', '/register', '/auth/role']
+
+function isHistorySensitivePath(pathname) {
+  return (
+    PROTECTED_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix)) ||
+    HISTORY_SENSITIVE_PATHS.includes(pathname)
+  )
+}
+
+function applySessionAwareHeaders(response, pathname) {
+  if (isHistorySensitivePath(pathname)) {
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    response.headers.set('Vary', 'Cookie')
+  }
+
+  return response
+}
+
+function redirectWithHeaders(url, pathname) {
+  return applySessionAwareHeaders(NextResponse.redirect(url), pathname)
+}
 
 export async function middleware(req) {
-  const res = NextResponse.next()
+  const { pathname } = req.nextUrl
+  const res = applySessionAwareHeaders(NextResponse.next(), pathname)
   const supabase = createMiddlewareClient({ req, res })
   const {
     data: { session },
   } = await supabase.auth.getSession()
-  const { pathname } = req.nextUrl
   const isSwitchMode = req.nextUrl.searchParams.get('switch') === '1'
 
   if (!session && (pathname.startsWith('/dashboard') || pathname === '/auth/role')) {
     const loginUrl = new URL('/login', req.url)
     loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    return redirectWithHeaders(loginUrl, pathname)
   }
 
   let userRole = null
@@ -30,18 +54,22 @@ export async function middleware(req) {
   }
 
   if (session && (pathname === '/login' || pathname === '/register') && !isSwitchMode) {
-    return NextResponse.redirect(new URL(userRole ? `/dashboard/${userRole}` : '/auth/role', req.url))
+    return redirectWithHeaders(new URL(userRole ? `/dashboard/${userRole}` : '/auth/role', req.url), pathname)
+  }
+
+  if (session && pathname === '/dashboard') {
+    return redirectWithHeaders(new URL(userRole ? `/dashboard/${userRole}` : '/auth/role', req.url), pathname)
   }
 
   if (session && pathname.startsWith('/dashboard/') && !userRole) {
-    return NextResponse.redirect(new URL('/auth/role', req.url))
+    return redirectWithHeaders(new URL('/auth/role', req.url), pathname)
   }
 
   if (session && pathname.startsWith('/dashboard/')) {
     const pathRole = pathname.split('/')[2]
 
     if (userRole && KNOWN_ROLES.includes(pathRole) && pathRole !== userRole) {
-      return NextResponse.redirect(new URL(`/dashboard/${userRole}`, req.url))
+      return redirectWithHeaders(new URL(`/dashboard/${userRole}`, req.url), pathname)
     }
   }
 

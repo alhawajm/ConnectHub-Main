@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createRouteClient } from '@/lib/supabaseServer'
+import { scoreApplicationForEmployer } from '@/lib/jobMatching'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -8,7 +9,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
  *
  * Handles two modes:
  *  1. type: 'job_description' — optimise a job post description using AI
- *  2. type: 'candidate_match' — score a candidate against a job (0-100)
+ *  2. type: 'candidate_match' — rate candidate fit against a job (0-100)
  */
 export async function POST(request) {
   try {
@@ -45,27 +46,33 @@ Current Description: ${description || 'Not provided — write a compelling descr
 
     // ── Mode 2: Score candidate against job ─────────────────────
     if (type === 'candidate_match') {
-      const { jobTitle, jobSkills, candidateSkills, experienceYears } = body
+      const { jobTitle, jobSkills, jobLocation, candidateSkills, candidateHeadline, candidateLocation, coverLetter } = body
 
-      const message = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 256,
-        messages: [{
-          role: 'user',
-          content: `You are an AI recruiter. Score how well this candidate matches the job.
-
-Job: ${jobTitle}
-Required Skills: ${jobSkills?.join(', ') || 'Not specified'}
-
-Candidate Skills: ${candidateSkills?.join(', ') || 'Not specified'}
-Experience: ${experienceYears || 0} years
-
-Respond with ONLY a JSON object: {"score": <number 0-100>, "reason": "<one sentence>"}`,
-        }],
+      const result = scoreApplicationForEmployer({
+        cover_letter: coverLetter,
+        profiles: {
+          skills: candidateSkills,
+          headline: candidateHeadline,
+          location: candidateLocation,
+        },
+        jobs: {
+          title: jobTitle,
+          skills_required: jobSkills,
+          location: jobLocation,
+        },
+        created_at: new Date().toISOString(),
       })
 
-      const parsed = JSON.parse(message.content[0].text)
-      return Response.json({ success: true, data: parsed })
+      return Response.json({
+        success: true,
+        data: {
+          score: result.score,
+          reasons: result.reasons,
+          matchedSkills: result.matchedSkills,
+          breakdown: result.breakdown,
+          note: 'This is a comparison aid, not a hiring decision.',
+        },
+      })
     }
 
     return Response.json({ error: 'Invalid type' }, { status: 400 })

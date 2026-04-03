@@ -27,6 +27,28 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [demoJourneyActive, setDemoJourneyActive] = useState(false)
+  const demoMode = searchParams.get('demo') === '1'
+  const demoRole = searchParams.get('role')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    setDemoJourneyActive(window.sessionStorage.getItem('ch-demo-journey-active') === '1')
+  }, [])
+
+  useEffect(() => {
+    const demoEmail = searchParams.get('email')
+    const demoPassword = searchParams.get('password')
+
+    if (demoEmail) {
+      setEmail(demoEmail)
+    }
+
+    if (demoPassword) {
+      setPassword(demoPassword)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const switchMode = searchParams.get('switch') === '1'
@@ -59,14 +81,17 @@ export default function LoginPage() {
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle()
       const dashboardPath = profile?.role ? `/dashboard/${profile.role}` : '/auth/role'
       const redirectPath = searchParams.get('redirect')
-      const destination = redirectPath && (
+      const baseDestination = redirectPath && (
         !redirectPath.startsWith('/dashboard/') ||
         redirectPath === dashboardPath
       )
         ? redirectPath
         : dashboardPath
+      const destination = demoMode && demoJourneyActive
+        ? `${baseDestination}${baseDestination.includes('?') ? '&' : '?'}demo=1${demoRole ? `&role=${encodeURIComponent(demoRole)}` : ''}`
+        : baseDestination
 
-      router.push(destination)
+      router.replace(destination)
       router.refresh()
     } catch (err) {
       setError(err.message || 'Invalid email or password.')
@@ -84,7 +109,7 @@ export default function LoginPage() {
             Bahrain&apos;s professional network for jobs, freelance work, and hiring.
           </h1>
           <p className="mt-5 max-w-xl text-sm leading-7 text-white/75">
-            Sign in to continue with your dashboard, applications, proposals, chats, and AI-powered profile tools.
+            Sign in to continue with your dashboard, applications, proposals, chats, and smart profile tools.
           </p>
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {[
@@ -106,6 +131,13 @@ export default function LoginPage() {
             <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
             <p className="mt-2 text-sm text-gray-500">Sign in to your ConnectHub account.</p>
           </div>
+
+          {demoMode && demoJourneyActive && (
+            <div className="mb-4 rounded-xl border border-[#00cffd]/20 bg-[#00cffd]/8 px-4 py-3 text-sm text-[#0f3b52]">
+              <span className="font-semibold text-[#0099cc]">Demo walkthrough:</span>{' '}
+              Sign in with the prefilled {demoRole || 'demo'} account to continue the guided journey.
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

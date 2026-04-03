@@ -20,7 +20,7 @@ const ROLE_OPTIONS = [
     id: 'seeker',
     icon: Users,
     title: 'Job Seeker',
-    description: 'Get AI job matches, track applications, and grow your career profile.',
+    description: 'Get smart job matches, track applications, and grow your career profile.',
   },
   {
     id: 'freelancer',
@@ -122,7 +122,7 @@ export default function AuthRolePage() {
       const destination = nextPath && !nextPath.startsWith('/dashboard/')
         ? nextPath
         : `/dashboard/${selectedRole}`
-      router.push(destination)
+      router.replace(destination)
       router.refresh()
     } catch (err) {
       setError(err.message || 'Could not finish setting up your account.')
@@ -145,7 +145,7 @@ export default function AuthRolePage() {
           <div className="mt-10 grid gap-4">
             {[
               'Employer: hiring, candidate review, and analytics',
-              'Job Seeker: AI matching, saved jobs, and applications',
+              'Job Seeker: smart matching, saved jobs, and applications',
               'Freelancer: projects, proposals, contracts, and escrow',
             ].map(item => (
               <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/80">

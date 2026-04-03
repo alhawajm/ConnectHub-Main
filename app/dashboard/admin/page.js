@@ -30,7 +30,7 @@ export default function AdminDashboard() {
     const loadSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        router.push('/login')
+        router.replace('/login')
         return
       }
 
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
         .single()
 
       if (profileData?.role !== 'admin') {
-        router.push(`/dashboard/${profileData?.role || 'seeker'}`)
+        router.replace(`/dashboard/${profileData?.role || 'seeker'}`)
         return
       }
 

@@ -23,7 +23,7 @@ const EMPLOYER_PLANS = [
       'Unlimited job posts',
       'Full CV database access',
       'Application analytics and shortlist tools',
-      'AI candidate matching support',
+      'Candidate comparison support',
     ],
   },
   {
@@ -32,7 +32,7 @@ const EMPLOYER_PLANS = [
     description: 'For employers that want the full ConnectHub hiring stack.',
     features: [
       'Everything in Gold',
-      'AI recommendations and job matching support',
+      'Smart recommendations and job-fit support',
       'Recruitment counselling access',
       'Priority support and advanced hiring visibility',
     ],
@@ -44,10 +44,10 @@ const FREE_ACCESS = [
     title: 'Job Seekers',
     icon: Users,
     badge: 'Always Free',
-    description: 'Apply, build your profile, use AI matches, and manage your career journey without a subscription.',
+    description: 'Apply, build your profile, use smart matches, and manage your career journey without a subscription.',
     points: [
       'Job search and applications',
-      'AI matches and saved jobs',
+      'Smart matches and saved jobs',
       'CV builder, portfolio tools, and messaging',
     ],
   },

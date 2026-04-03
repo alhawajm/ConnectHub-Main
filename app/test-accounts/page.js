@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowRight, Briefcase, Check, Copy, Lock, Shield, Sparkles, UserCog, Users } from 'lucide-react'
 import { Badge, useToast } from '@/components/ui/Components'
 import Button from '@/components/ui/Button'
@@ -28,11 +29,11 @@ const accounts = [
     email: 'hr@techmark.bh',
     password: 'TechMark2026!',
     path: '/dashboard/employer',
-    features: ['Active jobs and freelance projects', 'Review applicants and AI match scores', 'Hiring pipeline and shortlist states', 'Chat with candidates and freelancers'],
+    features: ['Active jobs and freelance projects', 'Review applicants with fit scores and comparisons', 'Hiring pipeline and shortlist states', 'Chat with candidates and freelancers'],
     focus: 'Hiring pipeline and project-client activity',
     journey: [
       'Start on the employer dashboard to show active jobs and pipeline visibility.',
-      'Open candidate review to highlight AI match scores and interview progression.',
+      'Open candidate review to highlight fit scoring and interview progression.',
     ],
     proofPoints: ['Active jobs', 'Shortlisted and interview candidates', 'Employer-to-candidate chat'],
   },
@@ -42,13 +43,13 @@ const accounts = [
     email: 'yusuf@email.bh',
     password: 'Seeker2026!',
     path: '/dashboard/seeker',
-    features: ['Saved jobs and live applications', 'Interview-stage application history', 'AI job matches based on profile data', 'Message employer about interview flow'],
+    features: ['Saved jobs and live applications', 'Interview-stage application history', 'Smart job matches based on profile data', 'Message employer about interview flow'],
     focus: 'Personalized discovery and application progression',
     journey: [
       'Open the seeker dashboard to show saved jobs and interview activity.',
-      'Use AI Matches and applications to explain recommendation quality and progression.',
+      'Use Smart Matches and applications to explain fit quality and progression.',
     ],
-    proofPoints: ['Saved jobs', 'Interview-stage application', 'AI-ranked recommendations'],
+    proofPoints: ['Saved jobs', 'Interview-stage application', 'Fit-ranked opportunities'],
   },
   {
     role: 'Freelancer',
@@ -74,7 +75,7 @@ const roadmap = [
     path: '/dashboard/employer',
     outcomes: [
       'Show active roles and pipeline',
-      'Highlight AI match scores and interviews',
+      'Highlight fit scores and interviews',
     ],
   },
   {
@@ -84,7 +85,7 @@ const roadmap = [
     path: '/dashboard/seeker',
     outcomes: [
       'Show saved jobs and live applications',
-      'Explain profile-based AI ranking',
+      'Explain profile-based fit ranking',
     ],
   },
   {
@@ -108,6 +109,19 @@ const roadmap = [
     ],
   },
 ]
+
+function buildDemoLoginHref({ email, password, path, role }) {
+  const params = new URLSearchParams({
+    switch: '1',
+    demo: '1',
+    email,
+    password,
+    redirect: path,
+    role,
+  })
+
+  return `/login?${params.toString()}`
+}
 
 function PublicHeader() {
   return (
@@ -138,6 +152,7 @@ function PublicHeader() {
 }
 
 export default function TestAccountsPage() {
+  const router = useRouter()
   const toast = useToast()
   const [copied, setCopied] = useState('')
   const demoGuideEnabled =
@@ -149,6 +164,14 @@ export default function TestAccountsPage() {
     setCopied(`${label}:${value}`)
     toast.success(`${label} copied to clipboard.`)
     setTimeout(() => setCopied(''), 1500)
+  }
+
+  const launchDemoJourney = (target) => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('ch-demo-journey-active', '1')
+    }
+
+    router.push(buildDemoLoginHref(target))
   }
 
   if (!demoGuideEnabled) {
@@ -215,10 +238,19 @@ export default function TestAccountsPage() {
                   <div key={item.step} className="soft-panel p-5">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <Badge variant="cyan" dot={false}>{item.step}</Badge>
-                      <Link href={item.path} className="inline-flex items-center gap-1 text-sm font-medium text-[#0099cc] hover:underline">
+                      <button
+                        type="button"
+                        onClick={() => launchDemoJourney({
+                          role: item.title.replace(' Journey', ''),
+                          email: item.account,
+                          password: accounts.find(account => account.email === item.account)?.password || '',
+                          path: item.path,
+                        })}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-[#0099cc] hover:underline"
+                      >
                         Open
                         <ArrowRight className="h-4 w-4" />
-                      </Link>
+                      </button>
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{item.title}</h3>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.account}</p>
@@ -311,8 +343,8 @@ export default function TestAccountsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button href="/login">Use On Login Page</Button>
-                  <Button href={account.path} variant="outline">Open Dashboard</Button>
+                  <Button onClick={() => launchDemoJourney(account)}>Use On Login Page</Button>
+                  <Button onClick={() => launchDemoJourney(account)} variant="outline">Open Dashboard</Button>
                 </div>
               </div>
             ))}

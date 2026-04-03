@@ -173,7 +173,7 @@ export default function ProfileEditor({ profile, roleProfile, onSaved }) {
       {/* Skills */}
       <Card padding="md">
         <h3 className="font-display font-bold text-sm text-gray-900 dark:text-white mb-1">Skills</h3>
-        <p className="text-xs text-gray-400 mb-3">Separate with commas — used for AI matching</p>
+        <p className="text-xs text-gray-400 mb-3">Separate with commas — used for smarter fit comparisons</p>
         <Input
           value={skillsRaw}
           onChange={e => setSkillsRaw(e.target.value)}

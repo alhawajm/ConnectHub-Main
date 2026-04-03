@@ -13,7 +13,7 @@ export const metadata = {
     default: 'ConnectHub - Bahrain\'s Professional Network',
     template: '%s | ConnectHub',
   },
-  description: 'ConnectHub connects Bahrain\'s job seekers, employers, and freelancers through AI-powered matching, secure escrow payments, and professional tools.',
+  description: 'ConnectHub connects Bahrain\'s job seekers, employers, and freelancers through smart matching, secure escrow payments, and professional tools.',
   keywords: ['jobs', 'freelance', 'Bahrain', 'recruitment', 'careers', 'ConnectHub'],
   icons: {
     icon: '/connecthub-icon.png',

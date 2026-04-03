@@ -4,12 +4,14 @@
   "private": true,
   "scripts": {
     "clean": "powershell -Command \"if (Test-Path .next) { Remove-Item -Recurse -Force .next }\"",
-    "dev": "next dev",
-    "dev:fresh": "npm run clean && next dev",
+    "dev:raw": "next dev",
+    "dev": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-next-safe.ps1 dev",
+    "dev:fresh": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-next-safe.ps1 dev",
     "build": "next build",
     "rebuild": "npm run clean && next build",
-    "start": "next start",
-    "start:fresh": "npm run clean && next build && next start",
+    "start:raw": "next start",
+    "start": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-next-safe.ps1 start",
+    "start:fresh": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-next-safe.ps1 start",
     "lint": "next lint",
     "demo:seed": "node --env-file=.env.local scripts/setup.js"
   },

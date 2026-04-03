@@ -45,9 +45,9 @@ export default function RegisterPage() {
       })
       if (authError) throw authError
       if (data.session?.user) {
-        router.push(`/auth/role?role=${role}`)
+        router.replace(`/auth/role?role=${role}`)
       } else {
-        router.push('/login?registered=1')
+        router.replace('/login?registered=1')
       }
       router.refresh()
     } catch (err) { setError(err.message || 'Could not create your account.') }
@@ -70,7 +70,7 @@ export default function RegisterPage() {
           <div className="mt-10 grid gap-4">
             {[
               'Employer dashboards for hiring, job posts, and candidate tracking',
-              'Job seeker tools for AI matching, applications, and profile growth',
+              'Job seeker tools for smart matching, applications, and profile growth',
               'Freelancer workflows for proposals, contracts, and payments',
             ].map(item => (
               <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/80">

@@ -190,10 +190,10 @@ export default function PortfolioBuilder({ profile }) {
       const { data } = await res.json()
       if (data?.bio) {
         setAiBio(data.bio)
-        toast.success('AI bio generated.')
+        toast.success('Profile summary draft generated.')
       }
     } catch {
-      toast.error('AI generation failed.')
+      toast.error('Summary generation failed.')
     } finally {
       setAiLoading(false)
     }
@@ -389,8 +389,8 @@ export default function PortfolioBuilder({ profile }) {
           <Card padding="md">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
-                <h3 className="font-display font-bold text-gray-900 dark:text-white">AI Bio Generator</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Generate a polished summary based on your work and skills.</p>
+                <h3 className="font-display font-bold text-gray-900 dark:text-white">Profile Summary Generator</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Generate a polished first draft based on your work and skills, then refine it yourself.</p>
               </div>
               <Button size="sm" onClick={generateAiBio} loading={aiLoading}>Generate</Button>
             </div>

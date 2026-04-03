@@ -184,9 +184,9 @@ export function BrowsePage({ profile }) {
       })
       const { data } = await response.json()
       if (data?.proposal) setProposal(current => ({ ...current, cover_letter: data.proposal }))
-      toast.success('AI proposal generated')
+      toast.success('Proposal draft generated')
     } catch {
-      toast.error('AI proposal generation failed')
+      toast.error('Proposal draft generation failed')
     } finally {
       setAiLoading(false)
     }
@@ -220,7 +220,7 @@ export function BrowsePage({ profile }) {
 
   return (
     <div>
-      <PageHeader icon={Search} title="Browse Projects" subtitle="Find open freelance work and send proposals" />
+      <PageHeader icon={Search} title="Browse Projects" subtitle="Find open freelance work and use smart drafting support for proposals" />
       <Modal open={!!active} onClose={() => setActive(null)} title="Submit Proposal" size="md">
         {active && (
           <div className="space-y-4">
@@ -229,9 +229,9 @@ export function BrowsePage({ profile }) {
               <Input label="Bid Amount" type="number" prefix="BD" value={proposal.bid_amount} onChange={e => setProposal(current => ({ ...current, bid_amount: e.target.value }))} />
               <Input label="Delivery (days)" type="number" value={proposal.delivery_days} onChange={e => setProposal(current => ({ ...current, delivery_days: e.target.value }))} />
             </div>
-            <Input label="Cover Letter" as="textarea" rows={5} value={proposal.cover_letter} onChange={e => setProposal(current => ({ ...current, cover_letter: e.target.value }))} placeholder="Explain why you're the best fit..." />
+            <Input label="Cover Letter" as="textarea" rows={5} value={proposal.cover_letter} onChange={e => setProposal(current => ({ ...current, cover_letter: e.target.value }))} placeholder="Write a tailored response for this project..." />
             <div className="flex gap-3">
-              <Button variant="outline" size="sm" loading={aiLoading} onClick={generateProposal}><Zap className="h-4 w-4" /> AI Generate</Button>
+              <Button variant="outline" size="sm" loading={aiLoading} onClick={generateProposal}><Zap className="h-4 w-4" /> Draft</Button>
               <Button fullWidth loading={submitting} onClick={submitProposal}>Submit Proposal</Button>
             </div>
           </div>

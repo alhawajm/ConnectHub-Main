@@ -1,14 +1,15 @@
 ﻿'use client'
 import { useState, useEffect, useRef } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { cn, getRolePlanMeta, ROLE_LABELS } from '@/lib/utils'
 import { ToastContainer } from '@/components/ui/Components'
 import { useNotifications } from '@/hooks/useUser'
 import Logo from '@/components/branding/Logo'
+import Button from '@/components/ui/Button'
 import {
   Bell, Moon, Sun, LogOut, Menu, X,
-  Settings, CreditCard, LayoutGrid, CheckCircle,
+  Settings, CreditCard, LayoutGrid, CheckCircle, User, Sparkles, ArrowRight,
 } from 'lucide-react'
 
 const DEMO_ACCOUNT_EMAILS = new Set([
@@ -17,6 +18,41 @@ const DEMO_ACCOUNT_EMAILS = new Set([
   'yusuf@email.bh',
   'sara@designbh.com',
 ])
+
+const DEMO_GUIDES = {
+  employer: {
+    title: 'Employer walkthrough',
+    focus: 'Hiring pipeline and candidate quality',
+    steps: [
+      { id: 'overview', label: 'Open the main dashboard and explain active roles and hiring visibility.' },
+      { id: 'candidates', label: 'Move to candidates to highlight fit scores, comparisons, and interview progression.' },
+    ],
+  },
+  seeker: {
+    title: 'Job seeker walkthrough',
+    focus: 'Saved jobs, applications, and smart matches',
+    steps: [
+      { id: 'overview', label: 'Start on the dashboard to show saved jobs and application activity.' },
+      { id: 'matches', label: 'Open Smart Matches to explain why roles are ranked this way.' },
+    ],
+  },
+  freelancer: {
+    title: 'Freelancer walkthrough',
+    focus: 'Proposal-to-delivery lifecycle',
+    steps: [
+      { id: 'proposals', label: 'Start with proposals to show pending, accepted, and rejected states.' },
+      { id: 'earnings', label: 'Open earnings to explain milestones, escrow, and released balance.' },
+    ],
+  },
+  admin: {
+    title: 'Admin walkthrough',
+    focus: 'Platform oversight and issue resolution',
+    steps: [
+      { id: 'overview', label: 'Start on overview to show platform totals and activity signals.' },
+      { id: 'disputes', label: 'Open disputes to show the operational resolution workflow.' },
+    ],
+  },
+}
 
 function NavIcon({ icon, className }) {
   if (typeof icon === 'function') {
@@ -62,20 +98,22 @@ function NavItem({ icon, label, badge, badgeVariant = 'default', active, onClick
 /* Avatar */
 function Avatar({ name = '', size = 8 }) {
   const initials = name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('')
-  const colors = [
-    'from-[#00cffd] to-[#0099cc]', 'from-green-400 to-green-600',
-    'from-purple-400 to-purple-600', 'from-yellow-400 to-orange-500',
-    'from-blue-400 to-blue-600',
-  ]
-  const ci = name.charCodeAt(0) % colors.length || 0
+  const pixelSize = size * 4
+
   return (
-    <div className={cn(
-      `w-${size} h-${size} rounded-lg`,
-      'flex items-center justify-center font-bold text-white flex-shrink-0',
-      'bg-gradient-to-br text-xs',
-      colors[ci]
-    )}>
-      {initials || '?'}
+    <div
+      className={cn(
+        'flex items-center justify-center rounded-xl border font-semibold flex-shrink-0 shadow-sm',
+        'bg-[rgba(0,207,253,0.12)] text-[#0099cc] border-[rgba(0,207,253,0.18)]',
+        'dark:bg-[rgba(0,207,253,0.14)] dark:text-[#5ee7ff] dark:border-[rgba(0,207,253,0.24)]'
+      )}
+      style={{
+        width: `${pixelSize}px`,
+        height: `${pixelSize}px`,
+        fontSize: pixelSize >= 40 ? '0.95rem' : '0.8rem',
+      }}
+    >
+      {initials ? initials : <User className="h-4 w-4" />}
     </div>
   )
 }
@@ -133,12 +171,16 @@ export default function DashboardLayout({
   const supabase  = createClient()
   const router    = useRouter()
   const pathname  = usePathname()
+  const searchParams = useSearchParams()
   const notifRef  = useRef(null)
   const bellRef   = useRef(null)
 
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notifOpen,  setNotifOpen]  = useState(false)
   const [dark,       setDark]       = useState(false)
+  const [guideDismissed, setGuideDismissed] = useState(false)
+  const [demoJourneyActive, setDemoJourneyActive] = useState(false)
+  const [completedGuideSteps, setCompletedGuideSteps] = useState([])
 
   const { notifications, unreadCount, markAllRead } = useNotifications(profile?.id)
 
@@ -147,6 +189,27 @@ export default function DashboardLayout({
     const saved = localStorage.getItem('ch-theme')
     if (saved === 'dark') { document.documentElement.classList.add('dark'); setDark(true) }
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    setDemoJourneyActive(window.sessionStorage.getItem('ch-demo-journey-active') === '1')
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const roleKey = (profile?.role || searchParams.get('role') || '').toLowerCase()
+    if (!roleKey) return
+
+    setGuideDismissed(window.sessionStorage.getItem(`ch-demo-guide:${roleKey}`) === 'dismissed')
+    try {
+      const stored = JSON.parse(window.sessionStorage.getItem(`ch-demo-guide-steps:${roleKey}`) || '[]')
+      setCompletedGuideSteps(Array.isArray(stored) ? stored : [])
+    } catch {
+      setCompletedGuideSteps([])
+    }
+  }, [profile?.role, searchParams])
 
   // Close notif on outside click
   useEffect(() => {
@@ -187,6 +250,31 @@ export default function DashboardLayout({
   }
 
   const planMeta = getRolePlanMeta(profile)
+  const guideRole = (profile?.role || searchParams.get('role') || '').toLowerCase()
+  const demoGuide = searchParams.get('demo') === '1' && demoJourneyActive ? DEMO_GUIDES[guideRole] : null
+  const showDemoGuide = Boolean(demoGuide && !guideDismissed)
+  const currentGuideStep = demoGuide?.steps.find(step => !completedGuideSteps.includes(step.id)) || null
+  const guideProgress = demoGuide?.steps?.length
+    ? Math.round((completedGuideSteps.length / demoGuide.steps.length) * 100)
+    : 0
+
+  useEffect(() => {
+    if (!showDemoGuide || !activePage || !demoGuide || typeof window === 'undefined') return
+
+    const matchingStep = demoGuide.steps.find(step => step.id === activePage)
+    if (!matchingStep || completedGuideSteps.includes(matchingStep.id)) return
+
+    const nextCompleted = [...completedGuideSteps, matchingStep.id]
+    setCompletedGuideSteps(nextCompleted)
+    window.sessionStorage.setItem(`ch-demo-guide-steps:${guideRole}`, JSON.stringify(nextCompleted))
+  }, [activePage, completedGuideSteps, demoGuide, guideRole, showDemoGuide])
+
+  const dismissGuide = () => {
+    setGuideDismissed(true)
+    if (typeof window !== 'undefined' && guideRole) {
+      window.sessionStorage.setItem(`ch-demo-guide:${guideRole}`, 'dismissed')
+    }
+  }
 
   return (
     <div className="dashboard-layout">
@@ -347,6 +435,81 @@ export default function DashboardLayout({
 
           {/* Content */}
           <div className="dashboard-content">
+            {showDemoGuide && (
+              <div className="surface-card-strong mb-5 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="icon-badge-soft h-11 w-11 rounded-xl">
+                      <Sparkles className="h-5 w-5 text-[#00cffd]" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0099cc]">Guided Demo</p>
+                      <h2 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{demoGuide.title}</h2>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{demoGuide.focus}</p>
+                      <p className="mt-2 text-xs font-medium text-[#0099cc]">{completedGuideSteps.length} of {demoGuide.steps.length} steps completed</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={dismissGuide}
+                    className="text-sm font-medium text-[#0099cc] transition-colors hover:text-[#007799]"
+                  >
+                    Hide guide
+                  </button>
+                </div>
+
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-[rgba(0,207,253,0.08)]">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#00cffd] to-[#0099cc] transition-all duration-300"
+                    style={{ width: `${guideProgress}%` }}
+                  />
+                </div>
+
+                {currentGuideStep && (
+                  <div className="soft-panel mt-4 flex items-center justify-between gap-4 p-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0099cc]">Next Step</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{currentGuideStep.label}</p>
+                    </div>
+                    <Button size="sm" onClick={() => handleNavigate(currentGuideStep.id)}>
+                      Open Step
+                    </Button>
+                  </div>
+                )}
+
+                <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                  {demoGuide.steps.map((step, index) => (
+                    <button
+                      key={step.id}
+                      onClick={() => handleNavigate(step.id)}
+                      className={cn(
+                        'soft-panel flex items-start justify-between gap-3 p-4 text-left transition-all hover:border-[#00cffd]/30',
+                        completedGuideSteps.includes(step.id) && 'border-green-200 bg-green-50/80 dark:border-green-900/40 dark:bg-green-950/20'
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className={cn(
+                          'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                          completedGuideSteps.includes(step.id)
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                            : 'bg-[#00cffd]/15 text-[#0099cc]'
+                        )}>
+                          {completedGuideSteps.includes(step.id) ? <CheckCircle className="h-4 w-4" /> : index + 1}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Step {index + 1}</p>
+                          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{step.label}</p>
+                        </div>
+                      </div>
+                      {completedGuideSteps.includes(step.id) ? (
+                        <span className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-green-600 dark:text-green-300">Done</span>
+                      ) : (
+                        <ArrowRight className="mt-1 h-4 w-4 flex-shrink-0 text-[#0099cc]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {children}
           </div>
         </main>

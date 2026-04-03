@@ -73,7 +73,7 @@ export default function PortfolioBuilderPage() {
               </h1>
             </div>
             <p className="max-w-3xl text-lg text-gray-600 dark:text-gray-300">
-              Build a public-facing portfolio, generate an AI bio, and keep your work ready for employers and freelance clients.
+              Build a public-facing portfolio, generate a polished profile summary draft, and keep your work ready for employers and freelance clients.
             </p>
           </div>
           <div className="soft-panel flex items-center gap-3 px-4 py-3">

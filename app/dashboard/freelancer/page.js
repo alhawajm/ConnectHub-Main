@@ -78,7 +78,7 @@ export default function FreelancerDashboard() {
   useEffect(() => {
     ;(async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
+      if (!session) { router.replace('/login'); return }
       setUser(session.user)
       try {
         await loadDashboardData(session)
