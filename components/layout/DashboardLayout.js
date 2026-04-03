@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { cn, getRolePlanMeta, ROLE_LABELS } from '@/lib/utils'
 import { ToastContainer } from '@/components/ui/Components'
 import { useNotifications } from '@/hooks/useUser'
+import Logo from '@/components/branding/Logo'
 import {
   Bell, Moon, Sun, LogOut, Menu, X,
   Settings, CreditCard, LayoutGrid, CheckCircle,
@@ -172,9 +173,10 @@ export default function DashboardLayout({
     const shouldReturnToDemo = isDemoUser && (demoGuideEnabled || isLocalhost || pathname?.startsWith('/dashboard'))
 
     try {
-      await supabase.auth.signOut()
+      await fetch('/api/auth/logout', { method: 'POST' })
+      await supabase.auth.signOut({ scope: 'global' })
     } finally {
-      router.push(shouldReturnToDemo ? '/test-accounts' : '/login')
+      router.replace(shouldReturnToDemo ? '/test-accounts' : '/login?switch=1')
       router.refresh()
     }
   }
@@ -201,15 +203,7 @@ export default function DashboardLayout({
           >
             {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
-          <a href="/" className="flex items-center gap-2.5">
-            {/* Spec: w-10 h-10 gradient rounded-lg */}
-            <div className="w-10 h-10 bg-gradient-to-br from-[#00cffd] via-[#0099cc] to-[#007799] rounded-lg shadow-md flex items-center justify-center">
-              <span className="text-white font-bold text-lg">C</span>
-            </div>
-            <span className="hidden sm:block text-xl font-bold bg-gradient-to-r from-[#00cffd] to-[#0099cc] bg-clip-text text-transparent">
-              ConnectHub
-            </span>
-          </a>
+          <Logo className="gap-2.5" markSize={40} wordmarkClassName="hidden bg-gradient-to-r from-[#00cffd] to-[#0099cc] bg-clip-text text-xl font-bold text-transparent sm:block" />
         </div>
 
         {/* Centre: user */}

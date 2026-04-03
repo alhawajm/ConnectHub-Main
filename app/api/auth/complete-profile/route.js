@@ -54,7 +54,23 @@ export async function POST(request) {
     }
 
     const { role } = await request.json()
-    const validRoles = ['employer', 'seeker', 'freelancer', 'admin']
+    const {
+      data: currentProfile,
+      error: currentProfileError,
+    } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .maybeSingle()
+
+    if (currentProfileError) throw currentProfileError
+
+    const canAssignAdmin =
+      currentProfile?.role === 'admin' ||
+      session.user.user_metadata?.role === 'admin'
+    const validRoles = canAssignAdmin
+      ? ['employer', 'seeker', 'freelancer', 'admin']
+      : ['employer', 'seeker', 'freelancer']
 
     if (!validRoles.includes(role)) {
       return Response.json({ error: 'Invalid role' }, { status: 400 })

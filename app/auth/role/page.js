@@ -7,6 +7,7 @@ import { Briefcase, Check, ChevronLeft, Laptop, ShieldCheck, Users } from 'lucid
 import { createClient } from '@/lib/supabase'
 import { Badge, Card } from '@/components/ui/Components'
 import Button from '@/components/ui/Button'
+import { LogoMark } from '@/components/branding/Logo'
 
 const ROLE_OPTIONS = [
   {
@@ -46,12 +47,13 @@ export default function AuthRolePage() {
   const [saving, setSaving] = useState(false)
   const [selectedRole, setSelectedRole] = useState(requestedRole)
   const [existingRole, setExistingRole] = useState('')
+  const [canAssignAdmin, setCanAssignAdmin] = useState(false)
   const [error, setError] = useState('')
 
   const visibleRoles = useMemo(() => {
-    if (requestedRole === 'admin' || existingRole === 'admin') return ROLE_OPTIONS
+    if (canAssignAdmin || existingRole === 'admin') return ROLE_OPTIONS
     return ROLE_OPTIONS.filter(role => role.id !== 'admin')
-  }, [existingRole, requestedRole])
+  }, [canAssignAdmin, existingRole])
 
   useEffect(() => {
     let active = true
@@ -75,8 +77,16 @@ export default function AuthRolePage() {
       if (!active) return
 
       const profileRole = profile?.role || ''
+      const metadataRole = session.user.user_metadata?.role || ''
+      const allowAdmin = profileRole === 'admin' || metadataRole === 'admin'
+
+      setCanAssignAdmin(allowAdmin)
       setExistingRole(profileRole)
-      setSelectedRole(requestedRole || profileRole || 'seeker')
+      setSelectedRole(
+        requestedRole === 'admin' && !allowAdmin
+          ? profileRole || 'seeker'
+          : requestedRole || profileRole || 'seeker'
+      )
       setLoading(false)
     }
 
@@ -147,9 +157,7 @@ export default function AuthRolePage() {
 
         <Card className="mx-auto w-full max-w-[460px]">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#00cffd] to-[#0099cc] text-xl font-bold text-white">
-              C
-            </div>
+            <LogoMark size={48} className="mx-auto mb-4" priority />
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Pick your role</h2>
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               {existingRole

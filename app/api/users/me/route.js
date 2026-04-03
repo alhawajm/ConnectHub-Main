@@ -23,7 +23,7 @@ export async function GET() {
     let roleProfile = null
     const roleTable = { employer: 'employer_profiles', seeker: 'seeker_profiles', freelancer: 'freelancer_profiles' }[profile.role]
     if (roleTable) {
-      const { data: rp } = await supabase.from(roleTable).select('*').eq('id', session.user.id).single()
+      const { data: rp } = await supabase.from(roleTable).select('*').eq('id', session.user.id).maybeSingle()
       roleProfile = rp
     }
 

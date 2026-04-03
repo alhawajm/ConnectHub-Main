@@ -1,76 +1,110 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Badge, Card } from '@/components/ui/Components'
 import { createClient } from '@/lib/supabase'
-import { Briefcase, Users, Laptop, ChevronRight, Check } from 'lucide-react'
+import { Briefcase, Check, ChevronRight, Laptop, Users } from 'lucide-react'
 import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
+import { LogoMark } from '@/components/branding/Logo'
 
 const ROLES = [
-  { id: 'employer',   icon: Briefcase, title: 'Employer',    description: 'Post jobs and hire talent for your company' },
-  { id: 'seeker',     icon: Users,     title: 'Job Seeker',  description: 'Find your next career opportunity in Bahrain' },
-  { id: 'freelancer', icon: Laptop,    title: 'Freelancer',  description: 'Offer your skills and win freelance projects' },
+  { id: 'employer', icon: Briefcase, title: 'Employer', description: 'Post jobs and hire talent for your company.' },
+  { id: 'seeker', icon: Users, title: 'Job Seeker', description: 'Find your next career opportunity in Bahrain.' },
+  { id: 'freelancer', icon: Laptop, title: 'Freelancer', description: 'Offer your skills and win freelance projects.' },
 ]
 
 export default function RegisterPage() {
-  const router   = useRouter()
-  const supabase = createClient()
-  const [step,     setStep]     = useState(1)
-  const [role,     setRole]     = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const supabase = useMemo(() => createClient(), [])
+  const [step, setStep] = useState(1)
+  const [role, setRole] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [form, setForm] = useState({ full_name: '', email: '', password: '', confirm: '' })
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const handleRegister = async e => {
-    e.preventDefault()
+  useEffect(() => {
+    if (searchParams.get('switch') === '1') {
+      void supabase.auth.signOut({ scope: 'local' })
+    }
+  }, [searchParams, supabase])
+
+  const handleRegister = async event => {
+    event.preventDefault()
     setError('')
-    if (form.password !== form.confirm) { setError('Passwords do not match'); return }
-    if (form.password.length < 8)       { setError('Password must be at least 8 characters'); return }
+    if (!role) { setError('Choose the role you want to register as.'); return }
+    if (form.password !== form.confirm) { setError('Passwords do not match.'); return }
+    if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return }
     setLoading(true)
     try {
-      const { data, error: err } = await supabase.auth.signUp({
-        email: form.email, password: form.password,
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
         options: { data: { full_name: form.full_name, role } },
       })
-      if (err) throw err
-      if (data.user) {
-        await supabase.from('profiles').upsert({ id: data.user.id, full_name: form.full_name, role, email: form.email })
-        router.push(`/dashboard/${role}`)
+      if (authError) throw authError
+      if (data.session?.user) {
+        router.push(`/auth/role?role=${role}`)
+      } else {
+        router.push('/login?registered=1')
       }
-    } catch (e) { setError(e.message) }
-    finally     { setLoading(false) }
+      router.refresh()
+    } catch (err) { setError(err.message || 'Could not create your account.') }
+    finally { setLoading(false) }
   }
 
-  const inputCls = "flex h-9 w-full rounded-md px-3 py-2 bg-[#f3f3f5] border border-[rgba(0,207,253,0.1)] text-sm text-gray-900 outline-none transition-all duration-200 focus:border-[#00cffd] focus:ring-[3px] focus:ring-[#00cffd]/20 placeholder:text-[#717182]"
+  const inputCls = 'flex h-9 w-full rounded-md px-3 py-2 bg-[#f3f3f5] border border-[rgba(0,207,253,0.1)] text-sm text-gray-900 outline-none transition-all duration-200 focus:border-[#00cffd] focus:ring-[3px] focus:ring-[#00cffd]/20 placeholder:text-[#717182]'
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(to bottom right, #eff6ff, #ffffff, #ecfeff)' }}>
-      <div className="w-full max-w-md">
-
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-lg" style={{ background: 'linear-gradient(135deg, #00cffd, #0099cc)' }}>C</div>
-          <span className="text-2xl font-bold text-gray-900">Connect<span style={{ color: '#00cffd' }}>Hub</span></span>
-        </div>
-
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-8 justify-center">
-          {[1, 2].map(n => (
-            <div key={n} className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${step >= n ? 'text-white' : 'bg-gray-100 text-gray-400'}`}
-                style={step >= n ? { background: 'linear-gradient(135deg, #00cffd, #0099cc)' } : {}}>
-                {step > n ? <Check className="h-3.5 w-3.5" /> : n}
+    <div className="page-wrapper flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1fr_460px]">
+        <div className="hidden rounded-[28px] bg-[linear-gradient(135deg,#0f172a_0%,#12344a_100%)] p-10 text-white lg:block">
+          <Badge variant="cyan" dot={false} className="mb-6">Join ConnectHub</Badge>
+          <h1 className="max-w-xl text-4xl font-bold leading-tight">
+            Build the right account once and step into the right workflow from day one.
+          </h1>
+          <p className="mt-5 max-w-xl text-sm leading-7 text-white/75">
+            Employers hire, job seekers discover opportunities, and freelancers manage projects, contracts, and escrow in one connected platform.
+          </p>
+          <div className="mt-10 grid gap-4">
+            {[
+              'Employer dashboards for hiring, job posts, and candidate tracking',
+              'Job seeker tools for AI matching, applications, and profile growth',
+              'Freelancer workflows for proposals, contracts, and payments',
+            ].map(item => (
+              <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/80">
+                {item}
               </div>
-              <span className={`text-sm font-medium ${step >= n ? 'text-gray-900' : 'text-gray-400'}`}>
-                {n === 1 ? 'Choose role' : 'Create account'}
-              </span>
-              {n < 2 && <ChevronRight className="h-4 w-4 text-gray-300" />}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[rgba(0,207,253,0.1)] shadow-lg p-8">
+        <Card className="mx-auto w-full max-w-[460px]">
+          <div className="mb-8 text-center">
+            <LogoMark size={48} className="mx-auto mb-4" priority />
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Create your account</h2>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Choose your role, then finish your ConnectHub account setup.
+            </p>
+          </div>
+
+          <div className="mb-8 flex items-center justify-center gap-3">
+            {[1, 2].map(number => {
+              const active = step >= number
+              return (
+                <div key={number} className="flex items-center gap-3">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${active ? 'bg-gradient-to-r from-[#00cffd] to-[#0099cc] text-white' : 'bg-gray-100 text-gray-400 dark:bg-[#102034] dark:text-gray-500'}`}>
+                    {step > number ? <Check className="h-4 w-4" /> : number}
+                  </div>
+                  <span className={`text-sm font-medium ${active ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+                    {number === 1 ? 'Choose role' : 'Create account'}
+                  </span>
+                  {number < 2 && <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600" />}
+                </div>
+              )
+            })}
+          </div>
 
           {/* Step 1 — Role */}
           {step === 1 && (
@@ -143,7 +177,7 @@ export default function RegisterPage() {
               </form>
             </div>
           )}
-        </div>
+        </Card>
 
         <p className="text-center text-sm text-gray-400 mt-5">
           Already have an account?{' '}

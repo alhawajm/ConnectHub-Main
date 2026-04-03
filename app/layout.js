@@ -15,6 +15,11 @@ export const metadata = {
   },
   description: 'ConnectHub connects Bahrain\'s job seekers, employers, and freelancers through AI-powered matching, secure escrow payments, and professional tools.',
   keywords: ['jobs', 'freelance', 'Bahrain', 'recruitment', 'careers', 'ConnectHub'],
+  icons: {
+    icon: '/connecthub-icon.png',
+    shortcut: '/connecthub-icon.png',
+    apple: '/connecthub-icon.png',
+  },
   openGraph: {
     title: 'ConnectHub',
     description: 'Bahrain\'s Professional Network and Freelance Marketplace',

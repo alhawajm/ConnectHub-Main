@@ -1,4 +1,4 @@
-# ConnectHub
+ï»¿# ConnectHub
 
 ConnectHub is a full-stack professional networking, hiring, and freelance marketplace platform built for the Bahrain market. It brings together employers, job seekers, freelancers, and administrators in one product, with role-based dashboards, AI-assisted workflows, messaging, portfolio tooling, and service-focused business pages.
 
@@ -110,38 +110,38 @@ The project documents define the following pricing structure:
 ```text
 connecthub/
 +-- app/
-¦   +-- (auth)/
-¦   ¦   +-- login/page.js
-¦   ¦   +-- register/page.js
-¦   +-- api/
-¦   ¦   +-- ai/
-¦   ¦   +-- applications/
-¦   ¦   +-- freelance/
-¦   ¦   +-- jobs/
-¦   ¦   +-- messages/
-¦   ¦   +-- notifications/
-¦   ¦   +-- users/
-¦   +-- business-continuity/
-¦   +-- career-guidance/
-¦   +-- chat/
-¦   +-- cv-builder/
-¦   +-- dashboard/
-¦   ¦   +-- admin/
-¦   ¦   +-- employer/
-¦   ¦   +-- freelancer/
-¦   ¦   +-- seeker/
-¦   +-- freelance/
-¦   +-- job-matching/
-¦   +-- jobs/
-¦   +-- portfolio-builder/
-¦   +-- pricing/
-¦   +-- profile/
-¦   +-- projects/
-¦   +-- recruitment-counselling/
+Â¦   +-- (auth)/
+Â¦   Â¦   +-- login/page.js
+Â¦   Â¦   +-- register/page.js
+Â¦   +-- api/
+Â¦   Â¦   +-- ai/
+Â¦   Â¦   +-- applications/
+Â¦   Â¦   +-- freelance/
+Â¦   Â¦   +-- jobs/
+Â¦   Â¦   +-- messages/
+Â¦   Â¦   +-- notifications/
+Â¦   Â¦   +-- users/
+Â¦   +-- business-continuity/
+Â¦   +-- career-guidance/
+Â¦   +-- chat/
+Â¦   +-- cv-builder/
+Â¦   +-- dashboard/
+Â¦   Â¦   +-- admin/
+Â¦   Â¦   +-- employer/
+Â¦   Â¦   +-- freelancer/
+Â¦   Â¦   +-- seeker/
+Â¦   +-- freelance/
+Â¦   +-- job-matching/
+Â¦   +-- jobs/
+Â¦   +-- portfolio-builder/
+Â¦   +-- pricing/
+Â¦   +-- profile/
+Â¦   +-- projects/
+Â¦   +-- recruitment-counselling/
 +-- components/
-¦   +-- dashboard/
-¦   +-- layout/
-¦   +-- ui/
+Â¦   +-- dashboard/
+Â¦   +-- layout/
+Â¦   +-- ui/
 +-- hooks/
 +-- lib/
 +-- scripts/
@@ -218,11 +218,46 @@ Visit `http://localhost:3000`.
 ## Available Scripts
 
 ```bash
+npm run clean
 npm run dev
+npm run dev:fresh
 npm run build
+npm run rebuild
 npm run start
+npm run start:fresh
 npm run lint
 ```
+
+## Avoiding Broken UI During Local Work
+
+If the site ever loads as raw HTML, loses styling, or starts returning missing asset errors, the usual cause is stale Next.js build output in `.next` or an older server process still serving outdated files.
+
+Use these commands to recover quickly:
+
+```bash
+npm run dev:fresh
+```
+
+This removes the old `.next` folder and starts a fresh development server.
+
+For a clean production-style local check, use:
+
+```bash
+npm run start:fresh
+```
+
+This will:
+
+1. remove old `.next` output
+2. rebuild the app
+3. start the server from the new build
+
+Recommended workflow:
+
+- use `npm run dev` for normal development
+- use `npm run dev:fresh` if styles or UI assets stop loading correctly
+- use `npm run start:fresh` when validating a production-style local run
+- avoid leaving multiple Next.js servers running on different ports at the same time
 
 ## Deployment
 
@@ -254,3 +289,4 @@ The codebase has recently been stabilized and cleaned up, including:
 ## License
 
 This project is currently maintained as a private product codebase for ConnectHub.
+

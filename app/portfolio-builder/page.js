@@ -7,18 +7,14 @@ import { FolderOpen, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import PortfolioBuilder from '@/components/dashboard/PortfolioBuilder'
 import { Spinner } from '@/components/ui/Components'
+import Logo from '@/components/branding/Logo'
 
 function SiteHeader() {
   return (
     <header className="site-header">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-[#00cffd] via-[#0099cc] to-[#007799] shadow-md">
-              <span className="text-white font-bold text-xl">C</span>
-            </div>
-            <span className="text-xl font-bold text-gradient">ConnectHub</span>
-          </Link>
+          <Logo wordmarkClassName="text-xl font-bold text-gradient" />
           <div className="flex items-center gap-3">
             <Link href="/cv-builder" className="site-nav-link">CV Builder</Link>
             <Link href="/dashboard/seeker" className="btn-outline">Dashboard</Link>

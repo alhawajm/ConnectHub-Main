@@ -6,18 +6,14 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import MessagesPanel from '@/components/dashboard/MessagesPanel'
 import { Spinner } from '@/components/ui/Components'
+import Logo from '@/components/branding/Logo'
 
 function SiteHeader() {
   return (
     <header className="site-header">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-[#00cffd] via-[#0099cc] to-[#007799] shadow-md">
-              <span className="text-white font-bold text-xl">C</span>
-            </div>
-            <span className="text-xl font-bold text-gradient">ConnectHub</span>
-          </Link>
+          <Logo wordmarkClassName="text-xl font-bold text-gradient" />
           <Link href="/dashboard/seeker" className="inline-flex h-9 items-center px-4 rounded-md text-sm font-medium text-white bg-gradient-to-r from-[#00cffd] to-[#0099cc]">Dashboard</Link>
         </div>
       </div>

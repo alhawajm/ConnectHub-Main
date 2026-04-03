@@ -2,18 +2,20 @@ import Button from '@/components/ui/Button'
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-6 text-center dark:bg-gray-950">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 font-display text-2xl font-bold text-white shadow-lg shadow-brand-500/30">
-        C
-      </div>
-      <h1 className="mb-2 font-display text-6xl font-bold text-gray-900 dark:text-white">404</h1>
-      <p className="mb-2 font-display text-xl font-bold text-gray-600 dark:text-gray-400">Page not found</p>
-      <p className="mb-8 max-w-sm text-gray-400 dark:text-gray-500">
-        The page you&apos;re looking for doesn&apos;t exist or has been moved.
-      </p>
-      <div className="flex gap-3">
-        <Button href="/">Back to Home</Button>
-        <Button href="/login" variant="ghost">Sign In</Button>
+    <div className="page-wrapper flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="surface-card-strong w-full max-w-xl p-10 text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-[#00cffd] to-[#0099cc] text-2xl font-bold text-white shadow-lg">
+          C
+        </div>
+        <p className="mb-2 text-sm font-semibold uppercase tracking-[0.24em] text-[#0099cc]">Error 404</p>
+        <h1 className="mb-3 font-display text-5xl font-bold text-gray-900 dark:text-white">Page not found</h1>
+        <p className="mx-auto mb-8 max-w-md text-sm leading-7 text-gray-500 dark:text-gray-400">
+          The page you&apos;re looking for doesn&apos;t exist, may have moved, or is not available from your current route.
+        </p>
+        <div className="flex flex-col justify-center gap-3 sm:flex-row">
+          <Button href="/">Back to Home</Button>
+          <Button href="/login" variant="outline">Sign In</Button>
+        </div>
       </div>
     </div>
   )

@@ -2,17 +2,18 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Check, Copy, Lock, Shield, Sparkles, UserCog, Users } from 'lucide-react'
+import { ArrowRight, Briefcase, Check, Copy, Lock, Shield, Sparkles, UserCog, Users } from 'lucide-react'
 import { Badge, useToast } from '@/components/ui/Components'
 import Button from '@/components/ui/Button'
+import Logo from '@/components/branding/Logo'
 
 const accounts = [
   {
     role: 'Admin',
+    icon: UserCog,
     email: 'admin@connecthub.bh',
     password: 'Admin@2026!',
     path: '/dashboard/admin',
-    color: 'from-red-500 to-rose-600',
     features: ['Platform analytics', 'User management', 'Moderation tools', 'System overview'],
     focus: 'Governance and platform-wide visibility',
     journey: [
@@ -23,10 +24,10 @@ const accounts = [
   },
   {
     role: 'Employer',
+    icon: Briefcase,
     email: 'hr@techmark.bh',
     password: 'TechMark2026!',
     path: '/dashboard/employer',
-    color: 'from-blue-500 to-cyan-600',
     features: ['Active jobs and freelance projects', 'Review applicants and AI match scores', 'Hiring pipeline and shortlist states', 'Chat with candidates and freelancers'],
     focus: 'Hiring pipeline and project-client activity',
     journey: [
@@ -37,10 +38,10 @@ const accounts = [
   },
   {
     role: 'Job Seeker',
+    icon: Users,
     email: 'yusuf@email.bh',
     password: 'Seeker2026!',
     path: '/dashboard/seeker',
-    color: 'from-green-500 to-emerald-600',
     features: ['Saved jobs and live applications', 'Interview-stage application history', 'AI job matches based on profile data', 'Message employer about interview flow'],
     focus: 'Personalized discovery and application progression',
     journey: [
@@ -51,10 +52,10 @@ const accounts = [
   },
   {
     role: 'Freelancer',
+    icon: Sparkles,
     email: 'sara@designbh.com',
     password: 'Sara2026!',
     path: '/dashboard/freelancer',
-    color: 'from-violet-500 to-purple-600',
     features: ['Open, pending, accepted, and rejected proposals', 'Active contract, escrow, and milestone story', 'Review history and earnings snapshot', 'Client conversation and project delivery flow'],
     focus: 'Proposal-to-delivery lifecycle',
     journey: [
@@ -113,14 +114,7 @@ function PublicHeader() {
     <header className="site-header">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between gap-6">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#00cffd] via-[#0099cc] to-[#007799] shadow-md">
-              <span className="font-display text-lg font-bold text-white">C</span>
-            </div>
-            <span className="font-display text-xl font-bold text-gray-900 dark:text-white">
-              Connect<span className="text-[#00cffd]">Hub</span>
-            </span>
-          </Link>
+          <Logo priority />
 
           <nav className="hidden items-center gap-6 lg:flex">
             <Link href="/jobs" className="site-nav-link">Jobs</Link>
@@ -247,8 +241,8 @@ export default function TestAccountsPage() {
               <div key={account.role} className="surface-card-strong p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r text-sm font-bold text-white ${account.color}`}>
-                      {account.role.charAt(0)}
+                    <div className="icon-badge-soft h-11 w-11 rounded-xl">
+                      <account.icon className="h-5 w-5 text-[#00cffd]" />
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{account.role}</h2>

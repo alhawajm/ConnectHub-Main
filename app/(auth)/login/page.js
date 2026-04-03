@@ -1,14 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { Badge, Card } from '@/components/ui/Components'
 import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { LogoMark } from '@/components/branding/Logo'
 
 const demoAccounts = [
   { role: 'Employer', email: 'hr@techmark.bh', password: 'TechMark2026!' },
@@ -19,12 +20,31 @@ const demoAccounts = [
 
 export default function LoginPage() {
   const router = useRouter()
-  const supabase = createClient()
+  const searchParams = useSearchParams()
+  const supabase = useMemo(() => createClient(), [])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const switchMode = searchParams.get('switch') === '1'
+    if (!switchMode) return
+
+    let active = true
+    async function clearSession() {
+      await supabase.auth.signOut({ scope: 'local' })
+      if (active) {
+        router.refresh()
+      }
+    }
+
+    clearSession()
+    return () => {
+      active = false
+    }
+  }, [router, searchParams, supabase])
 
   const handleLogin = async e => {
     e.preventDefault()
@@ -32,11 +52,21 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      await supabase.auth.signOut({ scope: 'local' })
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
       if (authError) throw authError
 
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-      router.push(profile?.role ? `/dashboard/${profile.role}` : '/auth/role')
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle()
+      const dashboardPath = profile?.role ? `/dashboard/${profile.role}` : '/auth/role'
+      const redirectPath = searchParams.get('redirect')
+      const destination = redirectPath && (
+        !redirectPath.startsWith('/dashboard/') ||
+        redirectPath === dashboardPath
+      )
+        ? redirectPath
+        : dashboardPath
+
+      router.push(destination)
       router.refresh()
     } catch (err) {
       setError(err.message || 'Invalid email or password.')
@@ -72,9 +102,7 @@ export default function LoginPage() {
 
         <Card className="mx-auto w-full max-w-[420px]">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-[#00cffd] to-[#0099cc] text-xl font-bold text-white">
-              C
-            </div>
+            <LogoMark size={48} className="mx-auto mb-4" priority />
             <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
             <p className="mt-2 text-sm text-gray-500">Sign in to your ConnectHub account.</p>
           </div>

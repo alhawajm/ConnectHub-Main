@@ -337,6 +337,7 @@ function GuidancePage({ profile }) {
 export default function SeekerDashboard() {
   const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
+  const toast = useToast()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [seekerProfile, setSeekerProfile] = useState(null)
@@ -345,23 +346,30 @@ export default function SeekerDashboard() {
   const [jobs, setJobs] = useState([])
   const [activePage, setActivePage] = useState('overview')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   const loadDashboardData = useCallback(async sessionUser => {
     if (!sessionUser?.id) return
 
-    const [profileResponse, seekerProfileResponse, applicationsResponse, savedJobsResponse, jobsResponse] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', sessionUser.id).single(),
-      supabase.from('seeker_profiles').select('*').eq('id', sessionUser.id).single(),
-      supabase.from('applications').select('*, jobs(title)').eq('seeker_id', sessionUser.id).order('created_at', { ascending: false }),
-      supabase.from('saved_jobs').select('*, jobs(*)').eq('seeker_id', sessionUser.id),
-      supabase.from('jobs').select('*').eq('status', 'active').order('created_at', { ascending: false }).limit(30),
-    ])
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/seeker-data', {
+      cache: 'no-store',
+      headers: session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : undefined,
+    })
+    const payload = await response.json()
 
-    setProfile(profileResponse.data || null)
-    setSeekerProfile(seekerProfileResponse.data || null)
-    setApplications(applicationsResponse.data || [])
-    setSavedJobs(savedJobsResponse.data || [])
-    setJobs(jobsResponse.data || [])
+    if (!response.ok) {
+      throw new Error(payload.error || 'Could not load seeker dashboard.')
+    }
+
+    setLoadError('')
+    setProfile(payload.data?.profile || null)
+    setSeekerProfile(payload.data?.seekerProfile || null)
+    setApplications(payload.data?.applications || [])
+    setSavedJobs(payload.data?.savedJobs || [])
+    setJobs(payload.data?.jobs || [])
   }, [supabase])
 
   useEffect(() => {
@@ -373,8 +381,13 @@ export default function SeekerDashboard() {
       }
 
       setUser(session.user)
-      await loadDashboardData(session.user)
-      setLoading(false)
+      try {
+        await loadDashboardData(session.user)
+      } catch (error) {
+        setLoadError(error.message || 'Could not load seeker dashboard.')
+      } finally {
+        setLoading(false)
+      }
     })()
   }, [loadDashboardData, router, supabase])
 
@@ -422,6 +435,39 @@ export default function SeekerDashboard() {
       <div className="flex min-h-screen items-center justify-center" style={{ background: 'linear-gradient(to bottom right,#eff6ff,#fff,#ecfeff)' }}>
         <Spinner />
       </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <DashboardLayout
+        user={user}
+        profile={profile}
+        navItems={NAV}
+        activePage={activePage}
+        onNavigate={setActivePage}
+        pageTitle="Job Seeker Dashboard"
+        topbarRight={<Button size="sm" onClick={async () => {
+          try {
+            await loadDashboardData(user)
+          } catch (error) {
+            toast.error(error.message || 'Could not reload dashboard.')
+          }
+        }}><Search className="h-4 w-4" /> Retry</Button>}
+      >
+        <EmptyPlaceholder
+          icon={Search}
+          title="Could not load seeker workspace"
+          description={loadError}
+          action={<Button size="sm" onClick={async () => {
+            try {
+              await loadDashboardData(user)
+            } catch (error) {
+              toast.error(error.message || 'Could not reload dashboard.')
+            }
+          }}>Reload Dashboard</Button>}
+        />
+      </DashboardLayout>
     )
   }
 

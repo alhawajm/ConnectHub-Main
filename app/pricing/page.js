@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Briefcase, Check, Sparkles, Users } from 'lucide-react'
+import Logo from '@/components/branding/Logo'
 
 const EMPLOYER_PLANS = [
   {
@@ -88,12 +89,7 @@ function SiteHeader() {
     <header className="site-header">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between gap-8">
-          <Link href="/" className="flex items-center space-x-2 shrink-0">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-[#00cffd] via-[#0099cc] to-[#007799] shadow-md">
-              <span className="text-xl font-bold text-white">C</span>
-            </div>
-            <span className="text-gradient text-xl font-bold">ConnectHub</span>
-          </Link>
+          <Logo wordmarkClassName="text-gradient text-xl font-bold" />
           <nav className="hidden items-center space-x-6 md:flex">
             {[['/', 'Home'], ['/jobs', 'Jobs'], ['/freelance', 'Freelance'], ['/pricing', 'Pricing']].map(([href, label]) => (
               <Link key={href} href={href} className="site-nav-link">{label}</Link>

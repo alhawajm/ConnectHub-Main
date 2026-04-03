@@ -10,6 +10,7 @@ export async function middleware(req) {
     data: { session },
   } = await supabase.auth.getSession()
   const { pathname } = req.nextUrl
+  const isSwitchMode = req.nextUrl.searchParams.get('switch') === '1'
 
   if (!session && (pathname.startsWith('/dashboard') || pathname === '/auth/role')) {
     const loginUrl = new URL('/login', req.url)
@@ -28,7 +29,7 @@ export async function middleware(req) {
     userRole = profile?.role || null
   }
 
-  if (session && (pathname === '/login' || pathname === '/register')) {
+  if (session && (pathname === '/login' || pathname === '/register') && !isSwitchMode) {
     return NextResponse.redirect(new URL(userRole ? `/dashboard/${userRole}` : '/auth/role', req.url))
   }
 
