@@ -1,14 +1,21 @@
 ﻿'use client'
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { cn, ROLE_LABELS } from '@/lib/utils'
+import { cn, getRolePlanMeta, ROLE_LABELS } from '@/lib/utils'
 import { ToastContainer } from '@/components/ui/Components'
 import { useNotifications } from '@/hooks/useUser'
 import {
   Bell, Moon, Sun, LogOut, Menu, X,
   Settings, CreditCard, LayoutGrid, CheckCircle,
 } from 'lucide-react'
+
+const DEMO_ACCOUNT_EMAILS = new Set([
+  'admin@connecthub.bh',
+  'hr@techmark.bh',
+  'yusuf@email.bh',
+  'sara@designbh.com',
+])
 
 function NavIcon({ icon, className }) {
   if (typeof icon === 'function') {
@@ -124,6 +131,7 @@ export default function DashboardLayout({
 }) {
   const supabase  = createClient()
   const router    = useRouter()
+  const pathname  = usePathname()
   const notifRef  = useRef(null)
   const bellRef   = useRef(null)
 
@@ -157,8 +165,18 @@ export default function DashboardLayout({
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
+    const email = (user?.email || '').toLowerCase()
+    const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    const demoGuideEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_GUIDE === 'true'
+    const isDemoUser = DEMO_ACCOUNT_EMAILS.has(email)
+    const shouldReturnToDemo = isDemoUser && (demoGuideEnabled || isLocalhost || pathname?.startsWith('/dashboard'))
+
+    try {
+      await supabase.auth.signOut()
+    } finally {
+      router.push(shouldReturnToDemo ? '/test-accounts' : '/login')
+      router.refresh()
+    }
   }
 
   const handleNavigate = (id) => {
@@ -166,16 +184,7 @@ export default function DashboardLayout({
     setMobileOpen(false)
   }
 
-  // Plan badge
-  const plan = profile?.plan
-  const planLabel = plan === 'platinum' ? 'Platinum' : plan === 'gold' ? 'Gold' : plan === 'silver' ? 'Silver' : 'Free'
-  const planClass = plan === 'platinum'
-    ? 'bg-[rgba(0,207,253,0.1)] text-[#0099cc] border-[rgba(0,207,253,0.2)]'
-    : plan === 'gold'
-    ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-    : plan === 'silver'
-    ? 'bg-blue-50 text-blue-700 border-blue-200'
-    : 'bg-gray-100 text-gray-500 border-gray-200'
+  const planMeta = getRolePlanMeta(profile)
 
   return (
     <div className="dashboard-layout">
@@ -216,9 +225,9 @@ export default function DashboardLayout({
           </div>
           <span className={cn(
             'text-xs font-semibold px-2.5 py-0.5 rounded-full border',
-            planClass
+            planMeta.className
           )}>
-            {planLabel}
+            {planMeta.label}
           </span>
         </div>
 
@@ -321,7 +330,9 @@ export default function DashboardLayout({
           {/* Footer */}
           <div className="px-2 pb-3 border-t border-[rgba(0,207,253,0.08)] pt-2">
             <NavItem icon={Settings} label="Settings" active={activePage === 'settings'} onClick={() => handleNavigate('settings')} />
-            <NavItem icon={CreditCard} label="Billing" active={activePage === 'billing'} onClick={() => handleNavigate('billing')} />
+            {planMeta.showBilling && (
+              <NavItem icon={CreditCard} label="Billing" active={activePage === 'billing'} onClick={() => handleNavigate('billing')} />
+            )}
           </div>
         </aside>
 

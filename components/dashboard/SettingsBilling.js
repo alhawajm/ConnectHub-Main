@@ -4,8 +4,8 @@ import { createClient } from '@/lib/supabase'
 import { Card, useToast, Modal } from '@/components/ui/Components'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { cn, PLANS, formatDate } from '@/lib/utils'
-import { Building2, CreditCard, Landmark, Wallet } from 'lucide-react'
+import { cn, getRolePlanMeta, PLANS, formatDate, roleHasSubscriptions } from '@/lib/utils'
+import { Building2, CreditCard, Landmark, Wallet, CheckCircle2 } from 'lucide-react'
 import { ONE_TIME_SERVICES, PAYMENT_METHODS } from '@/lib/payments'
 
 function Toggle({ enabled, onChange, label, description }) {
@@ -152,11 +152,18 @@ const PLAN_FEATURES = {
 
 export function BillingPage({ profile }) {
   const toast = useToast()
+  const role = profile?.role
+  const isEmployerBilling = roleHasSubscriptions(role)
   const currentPlan = profile?.plan || 'free'
   const upgradePlans = ['silver', 'gold', 'platinum']
   const [selectedOffer, setSelectedOffer] = useState(null)
   const [selectedMethod, setSelectedMethod] = useState('card')
   const [launchingCheckout, setLaunchingCheckout] = useState(false)
+  const rolePlanMeta = getRolePlanMeta(profile)
+  const availableServices = ONE_TIME_SERVICES.filter(service => {
+    if (!service.audience?.length) return true
+    return service.audience.includes(role)
+  })
 
   const paymentIcons = {
     card: CreditCard,
@@ -214,6 +221,36 @@ export function BillingPage({ profile }) {
 
   return (
     <div className="flex max-w-2xl flex-col gap-5">
+      {!isEmployerBilling && (
+        <Card padding="md" className="border-2 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="mb-1 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Free Access</p>
+              <h3 className="font-display text-2xl font-bold text-gray-900 dark:text-white">
+                {role === 'freelancer' ? 'Freelancer access stays free' : 'Job seeker access stays free'}
+              </h3>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                ConnectHub subscriptions are reserved for employer hiring tools. Your account keeps core platform access without a monthly plan.
+              </p>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {(role === 'freelancer'
+              ? ['Browse projects freely', 'Send proposals from your dashboard', 'Manage contracts, escrow, and reviews', 'Build your profile and portfolio']
+              : ['Browse and apply for jobs freely', 'Get AI matches and saved jobs', 'Build your CV and profile', 'Access career guidance and messaging']
+            ).map(feature => (
+              <div key={feature} className="rounded-xl border border-emerald-200/70 bg-white/80 p-4 text-sm text-gray-700 dark:border-emerald-900/40 dark:bg-[#0e1a2b] dark:text-gray-300">
+                {feature}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <Card padding="md">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -253,36 +290,46 @@ export function BillingPage({ profile }) {
         padding="md"
         className={cn(
           'border-2',
-          currentPlan === 'platinum' && 'border-cyan-300 bg-cyan-50 dark:border-cyan-700 dark:bg-cyan-900/10',
-          currentPlan === 'gold' && 'border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/10',
-          currentPlan === 'silver' && 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/10',
-          currentPlan === 'free' && 'border-gray-200 dark:border-gray-700'
+          rolePlanMeta.key === 'platinum' && 'border-cyan-300 bg-cyan-50 dark:border-cyan-700 dark:bg-cyan-900/10',
+          rolePlanMeta.key === 'gold' && 'border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/10',
+          rolePlanMeta.key === 'silver' && 'border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/10',
+          rolePlanMeta.key === 'free' && 'border-gray-200 dark:border-gray-700'
         )}
       >
         <div className="flex items-start justify-between">
           <div>
             <p className="mb-1 text-xs font-bold uppercase tracking-wider text-gray-400">Current Plan</p>
-            <h3 className="font-display text-2xl font-bold capitalize text-gray-900 dark:text-white">
-              {currentPlan} Plan
+            <h3 className="font-display text-2xl font-bold text-gray-900 dark:text-white">
+              {isEmployerBilling ? `${rolePlanMeta.label} Plan` : `${rolePlanMeta.label} Access`}
             </h3>
-            {currentPlan !== 'free' && (
+            {isEmployerBilling && currentPlan !== 'free' && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 BD {PLANS[currentPlan]?.price}/month · Renews Mar 1, 2027
               </p>
             )}
+            {!isEmployerBilling && (
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                No subscription is required for your role.
+              </p>
+            )}
           </div>
-          {currentPlan !== 'free' && <Button size="sm" variant="ghost">Cancel Plan</Button>}
+          {isEmployerBilling && currentPlan !== 'free' && <Button size="sm" variant="ghost">Cancel Plan</Button>}
         </div>
         <ul className="mt-4 flex flex-col gap-1">
-          {(PLAN_FEATURES[currentPlan]?.features || []).map(feature => (
+          {(isEmployerBilling
+            ? (PLAN_FEATURES[currentPlan]?.features || [])
+            : role === 'freelancer'
+              ? ['Project browsing and proposals', 'Escrow, contracts, and disputes', 'Portfolio and profile tools']
+              : ['Job search and applications', 'AI matches and saved jobs', 'CV, profile, and career tools']
+          ).map(feature => (
             <li key={feature} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <span className="flex-shrink-0 font-bold text-green-500">?</span> {feature}
+              <span className="flex-shrink-0 font-bold text-green-500">•</span> {feature}
             </li>
           ))}
         </ul>
       </Card>
 
-      {currentPlan !== 'platinum' && (
+      {isEmployerBilling && currentPlan !== 'platinum' && (
         <div>
           <h3 className="mb-3 font-display font-bold text-gray-900 dark:text-white">Upgrade your plan</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -309,7 +356,7 @@ export function BillingPage({ profile }) {
                   <ul className="mb-3 flex flex-col gap-1">
                     {(PLAN_FEATURES[plan]?.features || []).slice(0, 3).map(feature => (
                       <li key={feature} className="flex gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="flex-shrink-0 text-green-500">?</span>
+                        <span className="flex-shrink-0 text-green-500">•</span>
                         {feature}
                       </li>
                     ))}
@@ -339,10 +386,11 @@ export function BillingPage({ profile }) {
         </div>
       )}
 
+      {availableServices.length > 0 && (
       <Card padding="md">
         <h3 className="mb-3 font-display font-bold text-gray-900 dark:text-white">One-Time Services</h3>
         <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-800">
-          {ONE_TIME_SERVICES.map(service => (
+          {availableServices.map(service => (
             <div key={service.id} className="flex items-center justify-between py-3">
               <div>
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{service.label}</p>
@@ -370,8 +418,9 @@ export function BillingPage({ profile }) {
           ))}
         </div>
       </Card>
+      )}
 
-      {invoices.length > 0 && (
+      {isEmployerBilling && invoices.length > 0 && (
         <Card padding="none">
           <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
             <h3 className="text-sm font-display font-bold text-gray-900 dark:text-white">Invoice History</h3>

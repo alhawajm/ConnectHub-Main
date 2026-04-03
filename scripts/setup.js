@@ -278,12 +278,27 @@ async function ensureUsers() {
         const { data: list } = await supabase.auth.admin.listUsers()
         const existing = list?.users?.find(entry => entry.email === user.email)
         if (!existing) throw new Error(`Could not find existing auth user for ${user.email}`)
+
+        const { error: updateError } = await supabase.auth.admin.updateUserById(existing.id, {
+          password: user.password,
+          email_confirm: true,
+          user_metadata: { role: user.role, full_name: user.full_name },
+        })
+        if (updateError) throw updateError
+
         ids[user.role] = existing.id
-        console.log('already exists')
+        console.log('already existed, password synced')
       } else {
         throw error
       }
     } else {
+      const { error: updateError } = await supabase.auth.admin.updateUserById(data.user.id, {
+        password: user.password,
+        email_confirm: true,
+        user_metadata: { role: user.role, full_name: user.full_name },
+      })
+      if (updateError) throw updateError
+
       ids[user.role] = data.user.id
       console.log('created')
     }

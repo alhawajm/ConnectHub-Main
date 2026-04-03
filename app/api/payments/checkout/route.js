@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createRouteClient } from '@/lib/supabaseServer'
+import { roleHasSubscriptions } from '@/lib/utils'
 import {
   getAppUrl,
   getPaymentMethod,
@@ -112,6 +113,19 @@ export async function POST(request) {
 
     if (!method) {
       return NextResponse.json({ error: 'Unknown payment method.' }, { status: 400 })
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single()
+
+    if (itemType === 'plan' && !roleHasSubscriptions(profile?.role)) {
+      return NextResponse.json(
+        { error: 'Subscriptions are only available for employer accounts.' },
+        { status: 403 }
+      )
     }
 
     const checkoutUrl = await createTapCharge({
