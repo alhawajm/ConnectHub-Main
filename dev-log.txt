@@ -1,0 +1,18 @@
+
+> connecthub@1.0.0 dev
+> next dev
+
+  ▲ Next.js 14.2.3
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1576ms
+ ✓ Compiled /middleware in 434ms (194 modules)
+ ○ Compiling /login ...
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (215kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled /login in 3.9s (901 modules)
+ GET /login 200 in 4119ms
+ ✓ Compiled in 452ms (448 modules)
+ ✓ Compiled in 274ms (448 modules)
+^C^C
