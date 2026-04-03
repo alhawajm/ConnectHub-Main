@@ -1,182 +1,256 @@
-# ConnectHub — Bahrain's Professional Network & Freelance Marketplace
+# ConnectHub
 
-A full-stack Next.js 14 web application combining job board, recruitment, and freelance marketplace features — powered by AI via Claude API.
+ConnectHub is a full-stack professional networking, hiring, and freelance marketplace platform built for the Bahrain market. It brings together employers, job seekers, freelancers, and administrators in one product, with role-based dashboards, AI-assisted workflows, messaging, portfolio tooling, and service-focused business pages.
 
----
+The application is built with Next.js 14, Supabase, Tailwind CSS, and Anthropic-powered AI endpoints.
 
-## ⚡ Quick Start (5 minutes)
+## Overview
+
+ConnectHub combines multiple product areas inside a single platform:
+
+- Job discovery and hiring for employers and job seekers
+- Freelance project discovery, proposals, and client delivery workflows
+- Portfolio and CV building tools
+- Real-time messaging and notifications
+- AI-assisted matching, proposal writing, and profile content generation
+- Admin tools for platform oversight, moderation, and analytics
+- Service pages for career guidance, recruitment counselling, and business continuity
+
+## Core Features
+
+### Public Experience
+
+- Landing page with platform overview, pricing, services, and conversion sections
+- Pricing page with subscription tiers and one-time add-on services
+- Dedicated pages for:
+  - Career Guidance
+  - Recruitment Counselling
+  - Business Continuity
+- Authentication pages for sign in and registration
+
+### Employer Features
+
+- Employer dashboard with hiring overview and analytics
+- Job posting and candidate review flows
+- Application tracking and hiring funnel visibility
+- AI-assisted candidate matching and job description support
+- Messaging with applicants and platform users
+
+### Job Seeker Features
+
+- Seeker dashboard for applications, saved jobs, and AI matches
+- Job search and application workflow
+- Portfolio and CV management
+- Career guidance access
+- Messaging and profile management
+
+### Freelancer Features
+
+- Freelancer dashboard for projects, proposals, and earnings
+- Browse projects, submit proposals, and manage active work
+- Portfolio builder and public profile support
+- Contracts, disputes, reviews, and finance-related views
+- Messaging and client communication
+
+### Admin Features
+
+- Admin dashboard with platform-wide overview
+- User management and content moderation
+- Oversight for job posts, freelance projects, disputes, and payments
+- Platform analytics and operational monitoring
+
+### AI Features
+
+- AI CV and profile content generation
+- AI proposal drafting for freelancers
+- AI job and candidate matching endpoints
+- AI-assisted hiring and profile optimization workflows
+
+## User Roles
+
+| Role | Main Dashboard | Primary Capabilities |
+| --- | --- | --- |
+| Employer | `/dashboard/employer` | Post jobs, review applicants, manage hiring pipeline, view analytics |
+| Job Seeker | `/dashboard/seeker` | Search jobs, manage applications, build CV and portfolio, receive AI matches |
+| Freelancer | `/dashboard/freelancer` | Browse projects, send proposals, manage active work, track earnings |
+| Admin | `/dashboard/admin` | Manage users, moderate content, review disputes, monitor platform health |
+
+## Pricing Model
+
+The project documents define the following pricing structure:
+
+### Subscription Plans
+
+- Silver: `BD 18/month`
+- Gold: `BD 23/month`
+- Platinum: `BD 28/month`
+
+### One-Time Services
+
+- Single Job Post: `BD 2`
+- 10 Job Posts: `BD 15`
+- Professional Portfolio: `BD 5`
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js 14 App Router, React 18 |
+| Styling | Tailwind CSS |
+| UI Icons | Lucide React |
+| Backend | Next.js route handlers |
+| Database | Supabase PostgreSQL |
+| Authentication | Supabase Auth |
+| AI | Anthropic SDK |
+| Charts / Visualization | Recharts |
+| PDF / Export Utilities | jsPDF, html2canvas |
+
+## Project Structure
+
+```text
+connecthub/
++-- app/
+�   +-- (auth)/
+�   �   +-- login/page.js
+�   �   +-- register/page.js
+�   +-- api/
+�   �   +-- ai/
+�   �   +-- applications/
+�   �   +-- freelance/
+�   �   +-- jobs/
+�   �   +-- messages/
+�   �   +-- notifications/
+�   �   +-- users/
+�   +-- business-continuity/
+�   +-- career-guidance/
+�   +-- chat/
+�   +-- cv-builder/
+�   +-- dashboard/
+�   �   +-- admin/
+�   �   +-- employer/
+�   �   +-- freelancer/
+�   �   +-- seeker/
+�   +-- freelance/
+�   +-- job-matching/
+�   +-- jobs/
+�   +-- portfolio-builder/
+�   +-- pricing/
+�   +-- profile/
+�   +-- projects/
+�   +-- recruitment-counselling/
++-- components/
+�   +-- dashboard/
+�   +-- layout/
+�   +-- ui/
++-- hooks/
++-- lib/
++-- scripts/
++-- supabase/
+```
+
+## Database Scope
+
+The Supabase schema covers the main platform entities required for hiring, freelance work, messaging, and billing-related flows, including:
+
+- `profiles`
+- `employer_profiles`
+- `seeker_profiles`
+- `freelancer_profiles`
+- `jobs`
+- `applications`
+- `saved_jobs`
+- `projects`
+- `proposals`
+- `contracts`
+- `milestones`
+- `escrow`
+- `disputes`
+- `conversations`
+- `messages`
+- `reviews`
+- `notifications`
+- `job_alerts`
+
+Row Level Security is enabled to support role-aware data access patterns.
+
+## Environment Variables
+
+Copy `.env.local.example` to `.env.local` and provide the required values:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ANTHROPIC_API_KEY=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_NAME=ConnectHub
+```
+
+Optional email-related variables can be added later if notification delivery is expanded.
+
+## Local Development
 
 ### 1. Install dependencies
+
 ```bash
 npm install
 ```
 
-### 2. Set up Supabase
-1. Go to [supabase.com](https://supabase.com) → Create a new project
-2. Go to **SQL Editor** → paste the entire contents of `supabase/schema.sql` → Run it
-3. Go to **Settings → API** → copy your Project URL and anon key
+### 2. Configure Supabase
 
-### 3. Set up environment variables
-```bash
-# Copy the example file
-copy .env.local.example .env.local
-```
+1. Create a Supabase project.
+2. Run the SQL in `supabase/schema.sql`.
+3. Optionally seed demo data from `supabase/seed.sql`.
+4. Add your Supabase credentials to `.env.local`.
 
-Then open `.env.local` and fill in:
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-```
+### 3. Configure AI access
 
-**Get your Anthropic API key:** [console.anthropic.com](https://console.anthropic.com)
+Add your Anthropic API key to `.env.local`.
 
-### 4. Run the app
+### 4. Start the development server
+
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) 🎉
+Visit `http://localhost:3000`.
 
----
-
-## 📁 Project Structure
-
-```
-connecthub/
-├── app/
-│   ├── (auth)/
-│   │   ├── login/page.js          # Login page
-│   │   └── register/page.js       # Registration with role selection
-│   ├── (dashboard)/
-│   │   ├── employer/page.js       # Employer dashboard
-│   │   ├── seeker/page.js         # Job seeker dashboard
-│   │   ├── freelancer/page.js     # Freelancer dashboard
-│   │   └── admin/page.js          # Admin panel
-│   ├── api/
-│   │   ├── jobs/route.js          # Jobs CRUD API
-│   │   ├── applications/route.js  # Applications API
-│   │   ├── freelance/route.js     # Projects API
-│   │   └── ai/
-│   │       ├── match/route.js     # AI job matching & JD optimiser
-│   │       ├── cv/route.js        # AI bio/CV generator
-│   │       └── proposal/route.js  # AI proposal writer
-│   ├── globals.css                # Design tokens & global styles
-│   ├── layout.js                  # Root layout
-│   └── page.js                    # Home/landing page
-├── components/
-│   ├── ui/
-│   │   ├── Button.js              # Primary button component
-│   │   ├── Input.js               # Input, select, textarea
-│   │   └── Components.js          # Badge, Card, Avatar, Toast, Modal
-│   └── layout/
-│       └── DashboardLayout.js     # Sidebar + header + topbar
-├── lib/
-│   ├── supabase.js                # Browser Supabase client
-│   ├── supabaseServer.js          # Server Supabase client
-│   └── utils.js                   # Helpers: formatBD, timeAgo, cn, etc.
-├── supabase/
-│   └── schema.sql                 # Complete database schema + RLS + triggers
-├── middleware.js                   # Auth protection + role-based routing
-└── .env.local.example             # Environment variables template
-```
-
----
-
-## 🗄 Database Schema (Supabase)
-
-| Table              | Purpose                                    |
-|--------------------|--------------------------------------------|
-| `profiles`         | All users — base profile with role & plan  |
-| `employer_profiles`| Company info for employer accounts         |
-| `seeker_profiles`  | CV, experience, availability for seekers   |
-| `freelancer_profiles` | Rating, wallet, earnings for freelancers |
-| `jobs`             | Job listings posted by employers           |
-| `applications`     | Job applications with AI match score       |
-| `saved_jobs`       | Bookmarked jobs by seekers                 |
-| `projects`         | Freelance projects posted by clients       |
-| `proposals`        | Freelancer bids on projects                |
-| `contracts`        | Active contracts between client/freelancer |
-| `milestones`       | Payment milestones per contract            |
-| `escrow`           | Held funds with release/refund flow        |
-| `disputes`         | Dispute filing and admin arbitration       |
-| `messages`         | Real-time chat messages                    |
-| `conversations`    | Chat threads between 2 users               |
-| `reviews`          | Client/freelancer reviews after contracts  |
-| `notifications`    | In-app notifications                       |
-| `job_alerts`       | Saved search alerts for seekers            |
-
-Row Level Security (RLS) is enabled on all tables — users can only access their own data.
-
----
-
-## 🤖 AI Features (Claude API)
-
-| Feature                | Endpoint              | Who uses it      |
-|------------------------|-----------------------|------------------|
-| Job Description Optimiser | `POST /api/ai/match` (type: job_description) | Employers |
-| Candidate Match Scoring   | `POST /api/ai/match` (type: candidate_match) | Employers |
-| AI Bio Generator          | `POST /api/ai/cv`    | Job Seekers      |
-| AI Proposal Writer        | `POST /api/ai/proposal` | Freelancers   |
-
----
-
-## 👤 User Roles
-
-| Role       | Dashboard Path       | What they can do                           |
-|------------|----------------------|--------------------------------------------|
-| Employer   | `/dashboard/employer`| Post jobs, review candidates, analytics    |
-| Job Seeker | `/dashboard/seeker`  | Search & apply for jobs, AI CV builder     |
-| Freelancer | `/dashboard/freelancer` | Browse projects, submit proposals, earnings |
-| Admin      | `/dashboard/admin`   | Manage users, resolve disputes, analytics  |
-
----
-
-## 💳 Pricing (from Business Plan)
-
-**Employer Subscriptions:**
-- **Silver** — BD 18/month — Limited CV database, basic job posts
-- **Gold** — BD 23/month — Full analytics, unrestricted freelancer access, AI matching
-- **Platinum** — BD 28/month — All features + recruitment counselling + AI recommendations
-
-**One-time:**
-- Single job post: BD 2
-- Bulk 10 posts: BD 15
-- Professional portfolio: BD 5
-
----
-
-## 🚀 Deployment (Vercel)
+## Available Scripts
 
 ```bash
-# Install Vercel CLI
-npm install -g vercel
-
-# Deploy
-vercel
-
-# Set environment variables in Vercel dashboard:
-# Project → Settings → Environment Variables
-# Add all variables from .env.local
+npm run dev
+npm run build
+npm run start
+npm run lint
 ```
 
----
+## Deployment
 
-## 🔑 Tech Stack
+The project is ready to deploy on Vercel.
 
-| Layer       | Technology                     |
-|-------------|--------------------------------|
-| Frontend    | Next.js 14 (App Router)        |
-| Styling     | Tailwind CSS                   |
-| Database    | Supabase (PostgreSQL)          |
-| Auth        | Supabase Auth                  |
-| AI          | Anthropic Claude API           |
-| Hosting     | Vercel (free tier)             |
-| Payments    | Tap Payments / BenefitPay (add-on) |
+Recommended deployment steps:
 
----
+1. Create a new Vercel project connected to this repository.
+2. Add all required environment variables from `.env.local`.
+3. Ensure Supabase production credentials are configured correctly.
+4. Run a production deployment from the `main` branch.
 
-## 📧 Support
+## Current Application Status
 
-Built for ConnectHub, Bahrain. For questions, contact the development team.
+The codebase has recently been stabilized and cleaned up, including:
+
+- dashboard navigation consistency improvements
+- dark mode and shared theme repairs
+- restored portfolio, project details, and job details routes
+- cleaned malformed route artifacts
+- successful production build verification
+
+## Notes
+
+- `.env.local` is intentionally ignored and must not be committed.
+- Local runtime files such as logs and PID files are ignored.
+- If you are setting this up on a fresh machine, always create your local environment file before running authenticated or AI-dependent flows.
+
+## License
+
+This project is currently maintained as a private product codebase for ConnectHub.
