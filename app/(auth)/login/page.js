@@ -10,6 +10,7 @@ import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { LogoMark } from '@/components/branding/Logo'
+import { trackEvent } from '@/lib/analytics'
 
 const demoAccounts = [
   { role: 'Employer', email: 'hr@techmark.bh', password: 'TechMark2026!' },
@@ -91,9 +92,22 @@ export default function LoginPage() {
         ? `${baseDestination}${baseDestination.includes('?') ? '&' : '?'}demo=1${demoRole ? `&role=${encodeURIComponent(demoRole)}` : ''}`
         : baseDestination
 
+      void trackEvent('login_success', {
+        category: 'auth',
+        route: '/login',
+        metadata: { role: profile?.role || 'unassigned', demoMode },
+      })
+
       router.replace(destination)
       router.refresh()
     } catch (err) {
+      void trackEvent('login_failed', {
+        category: 'auth',
+        level: 'warning',
+        route: '/login',
+        message: err.message || 'Login failed',
+        metadata: { emailDomain: email.split('@')[1] || null, demoMode },
+      })
       setError(err.message || 'Invalid email or password.')
     } finally {
       setLoading(false)

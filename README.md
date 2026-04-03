@@ -67,6 +67,8 @@ ConnectHub combines multiple product areas inside a single platform:
 - Oversight for job posts, freelance projects, disputes, and payments
 - Platform analytics and operational monitoring
 - Dispute resolution workflow for freelance escrow handling
+- Sensitive action audit visibility for trust-critical workflows
+- Payment webhook audit visibility for replay-safe payment operations
 
 ### Smart System Features
 
@@ -213,8 +215,10 @@ Row Level Security is enabled to support role-aware data access patterns.
 Additional hardening is included in:
 
 - `supabase/migrations/20260403_auth_rls_indexes.sql`
+- `supabase/migrations/20260403_monitoring_analytics.sql`
+- `supabase/migrations/20260403_payment_webhook_hardening.sql`
 
-That migration adds missing RLS policies and performance indexes for protected dashboard and auth query paths.
+These migrations add missing RLS policies, performance indexes, the analytics event store used for admin-facing operational monitoring, and persistent replay protection for payment webhooks.
 
 ## Environment Variables
 
@@ -363,6 +367,28 @@ node scripts/qa-auth-journeys.js
 node scripts/qa-auth-session-lifecycle.js
 ```
 
+### Monitoring And Analytics
+
+The app now includes lightweight product telemetry and admin-visible operational signals.
+
+- Client-side events can be sent through `app/api/analytics/track/route.js`
+- Server-side event and error logging flows through `lib/telemetry.js`
+- Admin overview and analytics surfaces can read from `analytics_events`
+
+Before relying on those signals in production, apply:
+
+```sql
+supabase/migrations/20260403_monitoring_analytics.sql
+```
+
+Typical tracked areas now include:
+
+- login and registration outcomes
+- application submissions and status changes
+- freelance milestone and dispute workflow actions
+- payment checkout creation and failure states
+- verified and rejected payment webhooks
+
 Use them after changes to:
 
 - login/register/social auth
@@ -463,6 +489,38 @@ Recommended deployment steps:
 4. Configure payment, email, and demo variables only if those features are needed in production.
 5. Run a production deployment from the `main` branch.
 
+## Launch Checklist
+
+Use this as the final pre-launch pass:
+
+1. `npm run lint`
+2. `npm run build`
+3. `node scripts/qa-auth-journeys.js`
+4. `node scripts/qa-auth-session-lifecycle.js`
+5. Apply both Supabase hardening/monitoring migrations
+6. Apply the payment webhook hardening migration if live Tap webhooks are enabled
+7. Verify payment, email, and demo environment flags match the target environment
+8. Confirm `robots` and `sitemap` output on the deployed domain
+9. Test one manual flow per role in production or preview
+
+Detailed operator docs:
+
+- `docs/LAUNCH_READINESS_CHECKLIST.md`
+- `docs/SECURITY_AND_TRUST_AUDIT.md`
+- `docs/PRODUCTION_DEPLOYMENT_SETUP.md`
+- `docs/BUSINESS_CRITICAL_WORKFLOW_HARDENING.md`
+- `docs/RATE_LIMITING_PHASE2.md`
+
+## Production Integrations Still To Configure
+
+These are prepared in code, but still require real environment/provider setup:
+
+- Apple Sign In
+- Google Sign In
+- Tap production merchant credentials
+- Resend production sender identity
+- optional analytics dashboard workflow around `analytics_events`
+
 ## Current Application Status
 
 The codebase has recently been stabilized and cleaned up, including:
@@ -479,8 +537,14 @@ The codebase has recently been stabilized and cleaned up, including:
 - payment method preparation and receipt/email support
 - auth hardening and session lifecycle improvements
 - Supabase RLS and index hardening migration
+- route-level rate limiting on sensitive auth, payment, application, and workflow APIs
+- Tap webhook verification and replay protection
 - cleaned malformed route artifacts
 - successful production build verification
+- admin-facing operational monitoring and analytics event capture
+- payment webhook audit storage and admin review surface
+- launch metadata via `robots` and `sitemap`
+- shared loading and error surfaces for app and dashboard routes
 
 ## Notes
 
@@ -491,4 +555,5 @@ The codebase has recently been stabilized and cleaned up, including:
 ## License
 
 This project is currently maintained as a private product codebase for ConnectHub.
+
 

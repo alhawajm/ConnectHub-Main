@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabaseAdmin'
 import { scoreJobForSeeker } from '@/lib/jobMatching'
 import { sendTransactionalEmail } from '@/lib/email'
 import { renderApplicationReceivedEmail, renderApplicationStatusEmail } from '@/lib/engagementEmails'
+import { enforceRateLimit } from '@/lib/rateLimit'
+import { recordAnalyticsEvent, recordServerError } from '@/lib/telemetry'
 
 /**
  * GET /api/applications
@@ -48,9 +50,24 @@ export async function GET(request) {
     const { data, error } = await q
     if (error) throw error
 
+    await recordAnalyticsEvent({
+      category: 'applications',
+      action: 'list',
+      actorId: session.user.id,
+      actorRole: profile?.role,
+      route: '/api/applications',
+      metadata: { count: data?.length || 0 },
+    })
+
     return Response.json({ success: true, data })
 
   } catch (error) {
+    await recordServerError({
+      category: 'applications',
+      action: 'list_failed',
+      error,
+      route: '/api/applications',
+    })
     return Response.json({ error: error.message }, { status: 500 })
   }
 }
@@ -71,6 +88,19 @@ export async function POST(request) {
       supabase.from('seeker_profiles').select('*').eq('id', session.user.id).single(),
     ])
     if (profile?.role !== 'seeker') return Response.json({ error: 'Only job seekers can apply' }, { status: 403 })
+
+    const rateLimitResponse = enforceRateLimit({
+      request,
+      bucket: 'applications-submit',
+      actorId: session.user.id,
+      limit: 12,
+      windowMs: 10 * 60 * 1000,
+      message: 'Too many application attempts. Please wait a few minutes before trying again.',
+    })
+
+    if (rateLimitResponse) {
+      return rateLimitResponse
+    }
 
     const { job_id, cover_letter, cv_url } = await request.json()
     if (!job_id) return Response.json({ error: 'job_id is required' }, { status: 400 })
@@ -135,9 +165,25 @@ export async function POST(request) {
       }
     }
 
+    await recordAnalyticsEvent({
+      category: 'applications',
+      action: 'submitted',
+      actorId: session.user.id,
+      actorRole: profile?.role,
+      route: '/api/applications',
+      message: `${profile?.full_name || 'A seeker'} applied for ${job?.title || 'a role'}.`,
+      metadata: { jobId: job_id, aiMatchScore: recommendation.score },
+    })
+
     return Response.json({ success: true, data }, { status: 201 })
 
   } catch (error) {
+    await recordServerError({
+      category: 'applications',
+      action: 'submit_failed',
+      error,
+      route: '/api/applications',
+    })
     return Response.json({ error: error.message }, { status: 500 })
   }
 }
@@ -164,6 +210,19 @@ export async function PATCH(request) {
       .select('id, role, full_name')
       .eq('id', session.user.id)
       .single()
+
+    const rateLimitResponse = enforceRateLimit({
+      request,
+      bucket: 'applications-status-update',
+      actorId: session.user.id,
+      limit: 40,
+      windowMs: 10 * 60 * 1000,
+      message: 'Too many application updates. Please wait a few minutes before continuing.',
+    })
+
+    if (rateLimitResponse) {
+      return rateLimitResponse
+    }
 
     const { data: currentApplication } = await adminClient
       .from('applications')
@@ -223,9 +282,25 @@ export async function PATCH(request) {
       }
     }
 
+    await recordAnalyticsEvent({
+      category: 'applications',
+      action: 'status_updated',
+      actorId: session.user.id,
+      actorRole: actorProfile?.role,
+      route: '/api/applications',
+      message: `${actorProfile?.full_name || 'An employer'} marked an application as ${status}.`,
+      metadata: { applicationId: id, status },
+    })
+
     return Response.json({ success: true, data })
 
   } catch (error) {
+    await recordServerError({
+      category: 'applications',
+      action: 'status_update_failed',
+      error,
+      route: '/api/applications',
+    })
     return Response.json({ error: error.message }, { status: 500 })
   }
 }

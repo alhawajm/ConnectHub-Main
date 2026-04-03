@@ -3,6 +3,8 @@ import { createRouteClient } from '@/lib/supabaseServer'
 import { createAdminClient } from '@/lib/supabaseAdmin'
 import { sendTransactionalEmail } from '@/lib/email'
 import { renderMilestoneReviewedEmail } from '@/lib/engagementEmails'
+import { enforceRateLimit } from '@/lib/rateLimit'
+import { recordAnalyticsEvent, recordServerError } from '@/lib/telemetry'
 
 async function getCurrentProfile(supabase) {
   const {
@@ -153,6 +155,19 @@ export async function POST(request) {
     const body = await request.json()
     const action = body.action
 
+    const rateLimitResponse = enforceRateLimit({
+      request,
+      bucket: `freelance-workflow:${action || 'unknown'}`,
+      actorId: actor.id,
+      limit: 30,
+      windowMs: 10 * 60 * 1000,
+      message: 'Too many workflow actions. Please wait a few minutes before trying again.',
+    })
+
+    if (rateLimitResponse) {
+      return rateLimitResponse
+    }
+
     if (action === 'submit_milestone') {
       const { milestoneId } = body
       if (!milestoneId) {
@@ -185,6 +200,16 @@ export async function POST(request) {
         `${actor.full_name || 'Your freelancer'} submitted "${milestone.title}" for ${milestone.contracts.title}.`,
         '/dashboard/freelancer'
       )
+
+      await recordAnalyticsEvent({
+        category: 'freelance_workflow',
+        action: 'milestone_submitted',
+        actorId: actor.id,
+        actorRole: actor.role,
+        route: '/api/freelance/workflow',
+        message: `${actor.full_name || 'A freelancer'} submitted milestone "${milestone.title}".`,
+        metadata: { milestoneId, contractId: milestone.contract_id },
+      })
 
       return NextResponse.json({ success: true })
     }
@@ -244,6 +269,19 @@ export async function POST(request) {
         `${actor.full_name || 'A user'} opened a dispute for ${contract.title}.`,
         '/dashboard/admin'
       )
+
+      await recordAnalyticsEvent({
+        category: 'freelance_workflow',
+        action: 'dispute_opened',
+        actorId: actor.id,
+        actorRole: actor.role,
+        route: '/api/freelance/workflow',
+        message: `${actor.full_name || 'A user'} opened a dispute for ${contract.title}.`,
+        metadata: { contractId, against, amountDisputed: amountDisputed ? Number(amountDisputed) : null },
+        notify: true,
+        notificationTitle: 'New dispute requires review',
+        notificationBody: `${actor.full_name || 'A user'} opened a dispute for ${contract.title}.`,
+      })
 
       return NextResponse.json({ success: true })
     }
@@ -315,6 +353,16 @@ export async function POST(request) {
         })
       }
 
+      await recordAnalyticsEvent({
+        category: 'freelance_workflow',
+        action: 'milestone_approved',
+        actorId: actor.id,
+        actorRole: actor.role,
+        route: '/api/freelance/workflow',
+        message: `${actor.full_name || 'A client'} approved milestone "${milestone.title}".`,
+        metadata: { milestoneId, releasedAmount },
+      })
+
       return NextResponse.json({ success: true, releasedAmount })
     }
 
@@ -374,11 +422,36 @@ export async function POST(request) {
         actor.role === 'admin' ? '/dashboard/admin' : '/dashboard/freelancer'
       )
 
+      await recordAnalyticsEvent({
+        category: 'freelance_workflow',
+        action: 'dispute_resolved',
+        actorId: actor.id,
+        actorRole: actor.role,
+        route: '/api/freelance/workflow',
+        message:
+          resolutionAction === 'release'
+            ? `Admin released escrow for ${dispute.contracts.title}.`
+            : `Admin refunded escrow for ${dispute.contracts.title}.`,
+        metadata: { disputeId, contractId: dispute.contract_id, resolutionAction, releasedAmount },
+        notify: true,
+        notificationTitle: 'Dispute resolved',
+        notificationBody:
+          resolutionAction === 'release'
+            ? `Escrow was released for ${dispute.contracts.title}.`
+            : `Escrow was refunded for ${dispute.contracts.title}.`,
+      })
+
       return NextResponse.json({ success: true })
     }
 
     return NextResponse.json({ error: 'Unsupported action.' }, { status: 400 })
   } catch (error) {
+    await recordServerError({
+      category: 'freelance_workflow',
+      action: 'workflow_failed',
+      error,
+      route: '/api/freelance/workflow',
+    })
     const status = error.message === 'Unauthorized' ? 401 : 500
     return NextResponse.json({ error: error.message || 'Workflow action failed.' }, { status })
   }

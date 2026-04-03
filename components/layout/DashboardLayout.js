@@ -75,6 +75,17 @@ function NavIcon({ icon, className }) {
   return <LayoutGrid className={cn('h-4 w-4', className)} />
 }
 
+function normalizeNotificationLink(link, fallback = '/dashboard') {
+  if (!link || typeof link !== 'string') return fallback
+
+  const trimmed = link.trim()
+  if (!trimmed) return fallback
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+  if (trimmed.startsWith('/')) return trimmed
+
+  return `/${trimmed.replace(/^\/+/, '')}`
+}
+
 /* Nav item */
 function NavItem({ icon, label, badge, badgeVariant = 'default', active, onClick }) {
   return (
@@ -127,7 +138,7 @@ function Avatar({ name = '', size = 8 }) {
 }
 
 /* Notification panel */
-function NotifPanel({ notifications = [], onMarkAll, onClose }) {
+function NotifPanel({ notifications = [], onMarkAll, onClose, onNotificationClick }) {
   return (
     <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-[#0e1a2b] rounded-xl border border-[rgba(0,207,253,0.15)] shadow-2xl z-50 overflow-hidden animate-fade-in">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(0,207,253,0.1)]">
@@ -150,11 +161,15 @@ function NotifPanel({ notifications = [], onMarkAll, onClose }) {
             <p className="text-sm text-[#717182]">All caught up!</p>
           </div>
         ) : notifications.map(n => (
-          <div key={n.id} className={cn(
-            'flex gap-3 px-4 py-3 border-b border-[rgba(0,207,253,0.05)] cursor-pointer',
-            'hover:bg-[rgba(0,207,253,0.05)] transition-colors',
-            !n.is_read && 'bg-[rgba(0,207,253,0.03)]'
-          )}>
+          <button
+            key={n.id}
+            onClick={() => onNotificationClick?.(n)}
+            className={cn(
+              'flex w-full gap-3 px-4 py-3 border-b border-[rgba(0,207,253,0.05)] text-left cursor-pointer',
+              'hover:bg-[rgba(0,207,253,0.05)] transition-colors',
+              !n.is_read && 'bg-[rgba(0,207,253,0.03)]'
+            )}
+          >
             <div className="w-8 h-8 rounded-lg bg-[rgba(0,207,253,0.1)] flex items-center justify-center flex-shrink-0">
               <Bell className="h-4 w-4 text-[#00cffd]" />
             </div>
@@ -163,7 +178,7 @@ function NotifPanel({ notifications = [], onMarkAll, onClose }) {
               <p className="text-xs text-[#717182] mt-0.5">just now</p>
             </div>
             {!n.is_read && <span className="w-2 h-2 rounded-full bg-[#00cffd] flex-shrink-0 mt-1" />}
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -190,7 +205,7 @@ export default function DashboardLayout({
   const [demoJourneyActive, setDemoJourneyActive] = useState(false)
   const [completedGuideSteps, setCompletedGuideSteps] = useState([])
 
-  const { notifications, unreadCount, markAllRead } = useNotifications(profile?.id)
+  const { notifications, unreadCount, markAllRead, markRead } = useNotifications(profile?.id)
 
   // Persist theme
   useEffect(() => {
@@ -250,6 +265,26 @@ export default function DashboardLayout({
       router.replace(shouldReturnToDemo ? '/test-accounts' : '/login?switch=1')
       router.refresh()
     }
+  }
+
+  const handleNotificationClick = async (notification) => {
+    const destination = normalizeNotificationLink(
+      notification?.link,
+      profile?.role ? `/dashboard/${profile.role}` : '/dashboard'
+    )
+
+    if (notification?.id) {
+      await markRead(notification.id)
+    }
+
+    setNotifOpen(false)
+
+    if (destination.startsWith('http://') || destination.startsWith('https://')) {
+      window.location.href = destination
+      return
+    }
+
+    router.push(destination)
   }
 
   const handleNavigate = (id) => {
@@ -349,6 +384,7 @@ export default function DashboardLayout({
                 <NotifPanel
                   notifications={notifications}
                   onMarkAll={markAllRead}
+                  onNotificationClick={handleNotificationClick}
                   onClose={() => setNotifOpen(false)}
                 />
               </div>

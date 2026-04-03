@@ -26,17 +26,22 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0]
 const authCookieName = `sb-${projectRef}-auth-token`
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 const accounts = [
   {
     role: 'employer',
     email: 'hr@techmark.bh',
     password: 'TechMark2026!',
     dashboardPath: '/dashboard/employer',
-    checks: async client => {
+    checks: async (client, session) => {
+      const userId = session.user.id
       const { data: jobs, error: jobsError } = await client
         .from('jobs')
         .select('*')
-        .eq('employer_id', (await client.auth.getUser()).data.user.id)
+        .eq('employer_id', userId)
 
       if (jobsError) throw jobsError
       if (!jobs?.length) throw new Error('Employer has no jobs')
@@ -67,8 +72,8 @@ const accounts = [
     email: 'yusuf@email.bh',
     password: 'Seeker2026!',
     dashboardPath: '/dashboard/seeker',
-    checks: async client => {
-      const userId = (await client.auth.getUser()).data.user.id
+    checks: async (client, session) => {
+      const userId = session.user.id
       const [profileRes, applicationsRes, jobsRes] = await Promise.all([
         client.from('profiles').select('*').eq('id', userId).single(),
         client.from('applications').select('*, jobs(title)').eq('seeker_id', userId),
@@ -102,8 +107,8 @@ const accounts = [
     email: 'sara@designbh.com',
     password: 'Sara2026!',
     dashboardPath: '/dashboard/freelancer',
-    checks: async client => {
-      const userId = (await client.auth.getUser()).data.user.id
+    checks: async (client, session) => {
+      const userId = session.user.id
       const [profileRes, proposalsRes] = await Promise.all([
         client.from('profiles').select('*').eq('id', userId).single(),
         client.from('proposals').select('*, projects(title)').eq('freelancer_id', userId),
@@ -165,13 +170,20 @@ const accounts = [
   },
 ]
 
-async function fetchJson(path, headers) {
-  const response = await fetch(`${APP_URL}${path}`, { headers })
+async function fetchJson(path, headers, attempt = 1) {
+  const response = await fetch(`${APP_URL}${path}`, { headers, cache: 'no-store' })
   const text = await response.text()
   let payload
+
   try {
     payload = JSON.parse(text)
   } catch {
+    const looksLikeHtml = /^\s*<!DOCTYPE html/i.test(text)
+    if (looksLikeHtml && attempt < 3) {
+      await sleep(500 * attempt)
+      return fetchJson(path, headers, attempt + 1)
+    }
+
     throw new Error(`${path} returned non-JSON response: ${text.slice(0, 120)}`)
   }
 
@@ -233,7 +245,7 @@ async function runRoleJourney(account) {
   const session = signInResult.data.session
   const headers = createAuthHeaders(session)
 
-  const directChecks = await account.checks(client)
+  const directChecks = await account.checks(client, session)
   const apiChecks = await account.apiChecks(headers, session)
   const dashboardPage = await fetchPage(account.dashboardPath, headers)
   const crossRolePage = await fetchPage('/dashboard/admin', headers)

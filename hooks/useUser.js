@@ -156,5 +156,23 @@ export function useNotifications(userId) {
     setUnreadCount(0)
   }
 
-  return { notifications, unreadCount, markAllRead }
+  const markRead = async (notificationId) => {
+    if (!notificationId) return
+
+    const target = notifications.find(n => n.id === notificationId)
+    if (!target || target.is_read) return
+
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+      .eq('user_id', userId)
+
+    setNotifications(prev => prev.map(n => (
+      n.id === notificationId ? { ...n, is_read: true } : n
+    )))
+    setUnreadCount(count => Math.max(count - 1, 0))
+  }
+
+  return { notifications, unreadCount, markAllRead, markRead }
 }

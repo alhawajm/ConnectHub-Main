@@ -1,9 +1,20 @@
-import Button from '@/components/ui/Button'
+﻿import Button from '@/components/ui/Button'
 import { BarChart, DCard, ProgressBar, StatCard } from '@/components/dashboard/SharedComponents'
-import { Briefcase, Eye, Flag, Scale, Search, TrendingUp, Users } from 'lucide-react'
+import { AlertTriangle, Briefcase, CheckCircle2, CreditCard, Eye, Flag, Scale, Search, ShieldCheck, TrendingUp, Users } from 'lucide-react'
 import { ADMIN_GROWTH_BARS, ADMIN_ROLE_CARDS } from './constants'
 
-export function AdminOverview({ stats, onNavigate }) {
+function formatTimestamp(value) {
+  if (!value) return 'Unknown time'
+
+  return new Date(value).toLocaleString('en-BH', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+export function AdminOverview({ stats, systemEvents = [], onNavigate }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -41,6 +52,65 @@ export function AdminOverview({ stats, onNavigate }) {
             <QuickAction title="Manage Users" description="Review accounts and role distribution." onClick={() => onNavigate('users')} />
             <QuickAction title="Content Moderation" description="Check jobs and projects that need review." onClick={() => onNavigate('content')} />
             <QuickAction title="View Analytics" description="See growth, retention, and adoption trends." onClick={() => onNavigate('analytics')} />
+          </div>
+        </DCard>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <DCard>
+          <h2 className="mb-4 text-xl font-bold text-gray-900">System Health</h2>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+            <div className="rounded-xl border border-[#00cffd]/10 bg-[#00cffd]/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0099cc]">Errors In 24h</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{stats?.failedEvents24h || 0}</p>
+              <p className="mt-1 text-sm text-gray-500">Admin-notified workflow failures.</p>
+            </div>
+            <div className="rounded-xl border border-[#00cffd]/10 bg-white p-4 dark:bg-gray-900">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0099cc]">Tracked Events In 7d</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats?.trackedEvents7d || 0}</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Auth, applications, escrow, and payments.</p>
+            </div>
+          </div>
+        </DCard>
+
+        <DCard>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Recent System Signals</h2>
+              <p className="mt-1 text-sm text-gray-500">Latest tracked actions and operational alerts.</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => onNavigate('analytics')}>Open Analytics</Button>
+          </div>
+          <div className="space-y-3">
+            {systemEvents.length ? systemEvents.map(event => (
+              <div key={event.id} className="rounded-xl border border-[#00cffd]/10 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl ${event.level === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : 'bg-[#00cffd]/10 text-[#0099cc]'}`}>
+                      {event.level === 'error' ? <AlertTriangle className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {(event.category || 'system').replace(/_/g, ' ')} · {(event.action || 'event').replace(/_/g, ' ')}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{event.message || 'Tracked platform activity event.'}</p>
+                    </div>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${event.level === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : 'bg-[#00cffd]/10 text-[#0099cc]'}`}>
+                    {event.level || 'info'}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-400">
+                  <span>{formatTimestamp(event.created_at)}</span>
+                  {event.actor_role && <span className="capitalize">{event.actor_role}</span>}
+                  {event.route && <span>{event.route}</span>}
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-xl border border-[#00cffd]/10 bg-[#00cffd]/5 p-5 text-sm text-gray-500">
+                Monitoring is wired up. Apply the analytics migration to store live production events in Supabase.
+              </div>
+            )}
           </div>
         </DCard>
       </div>
@@ -161,6 +231,60 @@ export function EmptyAdminPanel({ icon: Icon, title, description, children }) {
   )
 }
 
+export function PaymentAuditView({ stats, paymentWebhookEvents = [] }) {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <StatCard label="Payment Signals In 24h" value={stats?.paymentSignals24h || 0} subtitle="Checkout and webhook events" icon={CreditCard} />
+        <StatCard label="Processed Webhooks In 7d" value={stats?.processedWebhooks7d || 0} subtitle="Stored replay-safe callbacks" icon={CheckCircle2} iconColor="#22c55e" />
+        <StatCard label="Projected Volume" value={`BD ${Number(stats?.paymentVol || 0).toLocaleString('en-BH')}`} subtitle="Planning horizon only" icon={ShieldCheck} />
+      </div>
+
+      <DCard>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Payment Webhook Audit</h2>
+            <p className="mt-1 text-sm text-gray-500">Verified webhook callbacks stored for replay protection and operator review.</p>
+          </div>
+          <span className="rounded-full bg-[#00cffd]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#0099cc]">
+            {paymentWebhookEvents.length} stored
+          </span>
+        </div>
+
+        {paymentWebhookEvents.length ? (
+          <div className="space-y-3">
+            {paymentWebhookEvents.map(event => (
+              <div key={`${event.provider}-${event.event_id}`} className="rounded-xl border border-[#00cffd]/10 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.event_id}</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {event.provider} · {event.event_type || 'charge'} · {event.status || 'unknown'}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#00cffd]/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#0099cc]">
+                    stored
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-400">
+                  <span>{formatTimestamp(event.created_at)}</span>
+                  {event.payload?.metadata?.itemType && <span>{event.payload.metadata.itemType}</span>}
+                  {event.payload?.metadata?.paymentMethod && <span>{event.payload.metadata.paymentMethod}</span>}
+                  {event.payload?.amount && <span>BD {Number(event.payload.amount).toLocaleString('en-BH')}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-[#00cffd]/10 bg-[#00cffd]/5 p-5 text-sm text-gray-500">
+            No payment webhooks have been stored yet. Once Tap test or live callbacks start arriving, they will appear here.
+          </div>
+        )}
+      </DCard>
+    </div>
+  )
+}
+
 export function DisputesView({ disputes, disputeActionId, onResolveDispute }) {
   return (
     <div className="overflow-hidden rounded-xl border-2 border-[#00cffd]/10 bg-white shadow-sm dark:bg-[#0e1a2b]">
@@ -198,12 +322,12 @@ export function DisputesView({ disputes, disputeActionId, onResolveDispute }) {
   )
 }
 
-export function AnalyticsView({ stats }) {
+export function AnalyticsView({ stats, systemEvents = [], sensitiveEvents = [] }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="DAU" value="3,840" subtitle="+8% WoW" icon={Eye} />
-        <StatCard label="AI Adoption" value="64%" subtitle="Target exceeded" icon={TrendingUp} iconColor="#22c55e" />
+        <StatCard label="Smart Tool Adoption" value="64%" subtitle="Target exceeded" icon={TrendingUp} iconColor="#22c55e" />
         <StatCard label="Retention" value={`${stats?.retention || 0}%`} subtitle="Monthly" icon={Users} />
         <StatCard label="Open Disputes" value={stats?.totalDisputes || 0} subtitle="Needs action" icon={Scale} iconColor="#f59e0b" />
       </div>
@@ -211,6 +335,82 @@ export function AnalyticsView({ stats }) {
         <h2 className="mb-4 text-xl font-bold text-gray-900">User Growth</h2>
         <BarChart data={ADMIN_GROWTH_BARS} height={140} />
       </DCard>
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <DCard>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Operational Signals</h2>
+            <span className="text-sm text-gray-500">{systemEvents.length} recent events</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+            <div className="rounded-xl border border-[#00cffd]/10 bg-[#00cffd]/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0099cc]">Errors In 24h</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{stats?.failedEvents24h || 0}</p>
+            </div>
+            <div className="rounded-xl border border-[#00cffd]/10 bg-white p-4 dark:bg-gray-900">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0099cc]">Events In 7d</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{stats?.trackedEvents7d || 0}</p>
+            </div>
+            <div className="space-y-3">
+              {systemEvents.length ? systemEvents.slice(0, 4).map(event => (
+                <div key={event.id} className="rounded-xl border border-[#00cffd]/10 p-4">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {(event.category || 'system').replace(/_/g, ' ')} · {(event.action || 'event').replace(/_/g, ' ')}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{event.message || 'Tracked platform activity event.'}</p>
+                  <p className="mt-2 text-xs text-gray-400">{formatTimestamp(event.created_at)}</p>
+                </div>
+              )) : (
+                <div className="rounded-xl border border-[#00cffd]/10 bg-[#00cffd]/5 p-5 text-sm text-gray-500">
+                  No operational signals have been stored yet.
+                </div>
+              )}
+            </div>
+          </div>
+        </DCard>
+
+        <DCard>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Sensitive Actions Audit</h2>
+              <p className="mt-1 text-sm text-gray-500">Role changes, payment actions, application decisions, and dispute handling.</p>
+            </div>
+            <span className="rounded-full bg-[#00cffd]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#0099cc]">
+              {sensitiveEvents.length} tracked
+            </span>
+          </div>
+          <div className="space-y-3">
+            {sensitiveEvents.length ? sensitiveEvents.map(event => (
+              <div key={event.id} className="rounded-xl border border-[#00cffd]/10 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl ${event.level === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : 'bg-[#00cffd]/10 text-[#0099cc]'}`}>
+                      {event.level === 'error' ? <AlertTriangle className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {(event.category || 'system').replace(/_/g, ' ')} · {(event.action || 'event').replace(/_/g, ' ')}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{event.message || 'Sensitive platform action recorded.'}</p>
+                    </div>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${event.level === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300' : 'bg-[#00cffd]/10 text-[#0099cc]'}`}>
+                    {event.level || 'info'}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-400">
+                  <span>{formatTimestamp(event.created_at)}</span>
+                  {event.actor_role && <span className="capitalize">{event.actor_role}</span>}
+                  {event.route && <span>{event.route}</span>}
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-xl border border-[#00cffd]/10 bg-[#00cffd]/5 p-5 text-sm text-gray-500">
+                Sensitive action logs will appear here as operators and users perform trust-critical workflows.
+              </div>
+            )}
+          </div>
+        </DCard>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import Logo from '@/components/branding/Logo'
 
 const footerLinks = {
@@ -39,7 +39,7 @@ export default function PublicFooter() {
             <div key={title}>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0099cc]">{title}</p>
               <div className="mt-4 flex flex-col gap-3">
-                {links.map((link) => (
+                {links.map(link => (
                   <Link key={link.href} href={link.href} className="text-sm text-gray-600 transition-colors hover:text-[#0099cc] dark:text-gray-300 dark:hover:text-[#5ee7ff]">
                     {link.label}
                   </Link>

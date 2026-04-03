@@ -8,6 +8,8 @@ import {
   formatTapAmount,
   resolveCheckoutItem,
 } from '@/lib/payments'
+import { enforceRateLimit } from '@/lib/rateLimit'
+import { recordAnalyticsEvent, recordServerError } from '@/lib/telemetry'
 
 function splitName(fullName = '') {
   const parts = fullName.trim().split(/\s+/).filter(Boolean)
@@ -103,6 +105,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const rateLimitResponse = enforceRateLimit({
+      request,
+      bucket: 'payments-checkout',
+      actorId: session.user.id,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+      message: 'Too many checkout attempts. Please wait a few minutes before trying again.',
+    })
+
+    if (rateLimitResponse) {
+      return rateLimitResponse
+    }
+
     const { itemType, itemId, methodId } = await request.json()
     const item = resolveCheckoutItem(itemType, itemId)
     const method = getPaymentMethod(methodId)
@@ -135,6 +150,16 @@ export async function POST(request) {
       origin: request.nextUrl.origin,
     })
 
+    await recordAnalyticsEvent({
+      category: 'payments',
+      action: 'checkout_created',
+      actorId: session.user.id,
+      actorRole: profile?.role,
+      route: '/api/payments/checkout',
+      message: `${profile?.role || 'user'} started checkout for ${item.name}.`,
+      metadata: { itemType, itemId, methodId },
+    })
+
     return NextResponse.json({
       success: true,
       data: {
@@ -144,6 +169,13 @@ export async function POST(request) {
       },
     })
   } catch (error) {
+    await recordServerError({
+      category: 'payments',
+      action: 'checkout_failed',
+      error,
+      route: '/api/payments/checkout',
+      notificationTitle: 'Payment checkout failed',
+    })
     return NextResponse.json(
       { error: error.message || 'Could not initialize checkout.' },
       { status: 500 }

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Badge, Card } from '@/components/ui/Components'
 import { createClient } from '@/lib/supabase'
+import { trackEvent } from '@/lib/analytics'
 import { Briefcase, Check, ChevronRight, Laptop, Users } from 'lucide-react'
 import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
 import { LogoMark } from '@/components/branding/Logo'
@@ -23,6 +24,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ full_name: '', email: '', password: '', confirm: '' })
+
+  const setField = (key, value) => setForm(current => ({ ...current, [key]: value }))
 
   useEffect(() => {
     if (searchParams.get('switch') === '1') {
@@ -44,14 +47,29 @@ export default function RegisterPage() {
         options: { data: { full_name: form.full_name, role } },
       })
       if (authError) throw authError
+      void trackEvent('register_success', {
+        category: 'auth',
+        route: '/register',
+        metadata: { role, emailDomain: form.email.split('@')[1] || null },
+      })
       if (data.session?.user) {
         router.replace(`/auth/role?role=${role}`)
       } else {
         router.replace('/login?registered=1')
       }
       router.refresh()
-    } catch (err) { setError(err.message || 'Could not create your account.') }
-    finally { setLoading(false) }
+    } catch (err) {
+      void trackEvent('register_failed', {
+        category: 'auth',
+        level: 'warning',
+        route: '/register',
+        message: err.message || 'Registration failed',
+        metadata: { role, emailDomain: form.email.split('@')[1] || null },
+      })
+      setError(err.message || 'Could not create your account.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const inputCls = 'flex h-9 w-full rounded-md px-3 py-2 bg-[#f3f3f5] border border-[rgba(0,207,253,0.1)] text-sm text-gray-900 outline-none transition-all duration-200 focus:border-[#00cffd] focus:ring-[3px] focus:ring-[#00cffd]/20 placeholder:text-[#717182]'
@@ -106,11 +124,10 @@ export default function RegisterPage() {
             })}
           </div>
 
-          {/* Step 1 — Role */}
           {step === 1 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">I want to…</h2>
-              <p className="text-sm text-gray-400 mb-6">Choose your role on ConnectHub</p>
+              <h2 className="mb-1 text-xl font-bold text-gray-900 dark:text-white">I want to...</h2>
+              <p className="mb-6 text-sm text-gray-400">Choose your role on ConnectHub</p>
               <div className="flex flex-col gap-3">
                 {ROLES.map(r => (
                   <button key={r.id} onClick={() => setRole(r.id)}
@@ -120,7 +137,7 @@ export default function RegisterPage() {
                       <r.icon className={`h-5 w-5 ${role === r.id ? 'text-white' : 'text-[#00cffd]'}`} />
                     </div>
                     <div className="flex-1">
-                      <p className={`text-sm font-semibold ${role === r.id ? 'text-[#0099cc]' : 'text-gray-900'}`}>{r.title}</p>
+                      <p className={`text-sm font-semibold ${role === r.id ? 'text-[#0099cc]' : 'text-gray-900 dark:text-white'}`}>{r.title}</p>
                       <p className="text-xs text-gray-400 mt-0.5">{r.description}</p>
                     </div>
                     {role === r.id && <Check className="h-4 w-4 text-[#00cffd] flex-shrink-0" />}
@@ -130,18 +147,17 @@ export default function RegisterPage() {
               <button disabled={!role} onClick={() => setStep(2)}
                 className="mt-6 w-full h-10 rounded-lg text-sm font-semibold text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: 'linear-gradient(135deg, #00cffd, #0099cc)' }}>
-                Continue →
+                Continue {'->'}
               </button>
             </div>
           )}
 
-          {/* Step 2 — Account */}
           {step === 2 && (
             <div>
-              <button onClick={() => setStep(1)} className="text-sm text-[#0099cc] font-medium mb-4 flex items-center gap-1 hover:underline">
-                ← Back
+              <button onClick={() => setStep(1)} className="mb-4 flex items-center gap-1 text-sm font-medium text-[#0099cc] hover:underline">
+                {'<-'} Back
               </button>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Create your account</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Create your account</h2>
               <p className="text-sm text-gray-400 mb-6">Registering as <span className="font-semibold text-[#0099cc] capitalize">{role}</span></p>
 
               {error && (
@@ -155,24 +171,24 @@ export default function RegisterPage() {
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Full Name</label>
-                  <input type="text" required placeholder="Ahmed Al-Mansoori" value={form.full_name} onChange={e => set('full_name', e.target.value)} className={inputCls} />
+                  <input type="text" required placeholder="Ahmed Al-Mansoori" value={form.full_name} onChange={e => setField('full_name', e.target.value)} className={inputCls} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Email Address</label>
-                  <input type="email" required placeholder="you@example.com" value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} />
+                  <input type="email" required placeholder="you@example.com" value={form.email} onChange={e => setField('email', e.target.value)} className={inputCls} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Password</label>
-                  <input type="password" required placeholder="Min 8 characters" value={form.password} onChange={e => set('password', e.target.value)} className={inputCls} />
+                  <input type="password" required placeholder="Min 8 characters" value={form.password} onChange={e => setField('password', e.target.value)} className={inputCls} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Confirm Password</label>
-                  <input type="password" required placeholder="Repeat password" value={form.confirm} onChange={e => set('confirm', e.target.value)} className={inputCls} />
+                  <input type="password" required placeholder="Repeat password" value={form.confirm} onChange={e => setField('confirm', e.target.value)} className={inputCls} />
                 </div>
                 <button type="submit" disabled={loading}
                   className="w-full h-10 rounded-lg text-sm font-semibold text-white transition-all duration-200 disabled:opacity-50 mt-2"
                   style={{ background: 'linear-gradient(135deg, #00cffd, #0099cc)' }}>
-                  {loading ? 'Creating account…' : 'Create Account'}
+                  {loading ? 'Creating account...' : 'Create Account'}
                 </button>
               </form>
             </div>

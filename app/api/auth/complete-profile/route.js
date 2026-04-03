@@ -1,4 +1,6 @@
 import { createRouteClient } from '@/lib/supabaseServer'
+import { enforceRateLimit } from '@/lib/rateLimit'
+import { recordAnalyticsEvent, recordServerError } from '@/lib/telemetry'
 
 function buildDisplayName(user) {
   const metadata = user?.user_metadata || {}
@@ -53,6 +55,19 @@ export async function POST(request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const rateLimitResponse = enforceRateLimit({
+      request,
+      bucket: 'auth-complete-profile',
+      actorId: session.user.id,
+      limit: 8,
+      windowMs: 10 * 60 * 1000,
+      message: 'Too many role assignment attempts. Please wait a moment and try again.',
+    })
+
+    if (rateLimitResponse) {
+      return rateLimitResponse
+    }
+
     const { role } = await request.json()
     const {
       data: currentProfile,
@@ -93,8 +108,24 @@ export async function POST(request) {
 
     await ensureRoleProfile(supabase, user.id, role, displayName)
 
+    await recordAnalyticsEvent({
+      category: 'auth',
+      action: 'role_assigned',
+      actorId: user.id,
+      actorRole: role,
+      route: '/api/auth/complete-profile',
+      message: `${displayName} completed onboarding as ${role}.`,
+      metadata: { role },
+    })
+
     return Response.json({ success: true, data: { role } })
   } catch (error) {
+    await recordServerError({
+      category: 'auth',
+      action: 'complete_profile_failed',
+      error,
+      route: '/api/auth/complete-profile',
+    })
     return Response.json({ error: error.message }, { status: 500 })
   }
 }

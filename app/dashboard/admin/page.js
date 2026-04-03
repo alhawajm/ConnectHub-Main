@@ -1,14 +1,20 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import Button from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Components'
-import { DCard } from '@/components/dashboard/SharedComponents'
-import { AnalyticsView, AdminOverview, ContentView, DisputesView, EmptyAdminPanel, UsersView } from '@/components/dashboard/admin/views'
+import {
+  AnalyticsView,
+  AdminOverview,
+  ContentView,
+  EmptyAdminPanel,
+  PaymentAuditView,
+  UsersView,
+} from '@/components/dashboard/admin/views'
 import { ADMIN_NAV } from '@/components/dashboard/admin/constants'
-import { Shield, Briefcase, FolderOpen, DollarSign, Scale } from 'lucide-react'
+import { Shield, Briefcase, FolderOpen, Scale } from 'lucide-react'
 
 export default function AdminDashboard() {
   const supabase = createClient()
@@ -18,6 +24,9 @@ export default function AdminDashboard() {
   const [jobs, setJobs] = useState([])
   const [projects, setProjects] = useState([])
   const [disputes, setDisputes] = useState([])
+  const [systemEvents, setSystemEvents] = useState([])
+  const [paymentWebhookEvents, setPaymentWebhookEvents] = useState([])
+  const [sensitiveEvents, setSensitiveEvents] = useState([])
   const [loadingData, setLoadingData] = useState(true)
   const [activeView, setActiveView] = useState('overview')
   const [user, setUser] = useState(null)
@@ -58,12 +67,14 @@ export default function AdminDashboard() {
       if (!user) return
 
       try {
-        const [jobsResult, usersResult, applicationsResult, projectsResult, disputesResult] = await Promise.all([
+        const [jobsResult, usersResult, applicationsResult, projectsResult, disputesResult, analyticsEventsResult, webhookEventsResult] = await Promise.all([
           supabase.from('jobs').select('*'),
           supabase.from('profiles').select('*'),
           supabase.from('applications').select('*'),
           supabase.from('projects').select('*'),
           supabase.from('disputes').select('*, contracts(title, client_id, freelancer_id)'),
+          supabase.from('analytics_events').select('*').order('created_at', { ascending: false }).limit(24),
+          supabase.from('payment_webhook_events').select('*').order('created_at', { ascending: false }).limit(12),
         ])
 
         const jobsData = jobsResult.data || []
@@ -71,13 +82,30 @@ export default function AdminDashboard() {
         const applicationsData = applicationsResult.data || []
         const projectsData = projectsResult.data || []
         const disputesData = disputesResult.data || []
-        const openDisputes = disputesData.filter((item) => item.status === 'open')
+        const analyticsEventsData = analyticsEventsResult.data || []
+        const paymentWebhookEventsData = webhookEventsResult.data || []
+        const openDisputes = disputesData.filter(item => item.status === 'open')
+        const now = Date.now()
+        const sensitiveActions = new Set([
+          'role_assigned',
+          'status_updated',
+          'milestone_submitted',
+          'milestone_approved',
+          'dispute_opened',
+          'dispute_resolved',
+          'checkout_created',
+          'checkout_failed',
+          'webhook_processed',
+          'webhook_rejected',
+          'webhook_failed',
+          'logout',
+        ])
 
         const usersByRole = {
-          seeker: usersData.filter((item) => item.role === 'seeker').length,
-          employer: usersData.filter((item) => item.role === 'employer').length,
-          freelancer: usersData.filter((item) => item.role === 'freelancer').length,
-          admin: usersData.filter((item) => item.role === 'admin').length,
+          seeker: usersData.filter(item => item.role === 'seeker').length,
+          employer: usersData.filter(item => item.role === 'employer').length,
+          freelancer: usersData.filter(item => item.role === 'freelancer').length,
+          admin: usersData.filter(item => item.role === 'admin').length,
         }
 
         setStats({
@@ -89,12 +117,34 @@ export default function AdminDashboard() {
           paymentVol: 4200000,
           retention: 72,
           usersByRole,
+          failedEvents24h: analyticsEventsData.filter(item => {
+            if (item.level !== 'error') return false
+            const createdAt = item.created_at ? new Date(item.created_at).getTime() : 0
+            return now - createdAt <= 24 * 60 * 60 * 1000
+          }).length,
+          trackedEvents7d: analyticsEventsData.filter(item => {
+            const createdAt = item.created_at ? new Date(item.created_at).getTime() : 0
+            return now - createdAt <= 7 * 24 * 60 * 60 * 1000
+          }).length,
+          processedWebhooks7d: paymentWebhookEventsData.filter(item => {
+            const createdAt = item.created_at ? new Date(item.created_at).getTime() : 0
+            return now - createdAt <= 7 * 24 * 60 * 60 * 1000
+          }).length,
+          paymentSignals24h: analyticsEventsData.filter(item => {
+            const createdAt = item.created_at ? new Date(item.created_at).getTime() : 0
+            return item.category === 'payments' && now - createdAt <= 24 * 60 * 60 * 1000
+          }).length,
         })
 
         setUsers(usersData)
         setJobs(jobsData)
         setProjects(projectsData)
         setDisputes(openDisputes)
+        setSystemEvents(analyticsEventsData.slice(0, 8))
+        setPaymentWebhookEvents(paymentWebhookEventsData)
+        setSensitiveEvents(
+          analyticsEventsData.filter(item => item.level === 'error' || sensitiveActions.has(item.action)).slice(0, 12)
+        )
       } catch (error) {
         console.error('Error fetching admin data:', error)
       } finally {
@@ -131,13 +181,13 @@ export default function AdminDashboard() {
 
   if (loading || loadingData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-8 flex items-center justify-center dark:from-[#08111f] dark:via-[#0b1728] dark:to-[#0f2133]">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-8 dark:from-[#08111f] dark:via-[#0b1728] dark:to-[#0f2133]">
         <Spinner />
       </div>
     )
   }
 
-  const filteredUsers = users.filter((item) => {
+  const filteredUsers = users.filter(item => {
     const q = searchQuery.toLowerCase()
     return item.full_name?.toLowerCase().includes(q) || item.email?.toLowerCase().includes(q)
   })
@@ -153,19 +203,17 @@ export default function AdminDashboard() {
     >
       <div className="space-y-8">
         <div className="flex items-start gap-4 rounded-2xl border border-[#00cffd]/10 bg-white p-6 shadow-sm dark:bg-[#0e1a2b]">
-          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#00cffd] to-[#0099cc] flex items-center justify-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-[#00cffd] to-[#0099cc]">
             <Shield className="h-7 w-7 text-white" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-            <p className="text-gray-600">Manage users, content, and analytics for ConnectHub.</p>
+            <h1 className="mb-2 text-4xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-600">Manage users, content, analytics, and operational health for ConnectHub.</p>
           </div>
         </div>
 
-        {activeView === 'overview' && <AdminOverview stats={stats} onNavigate={setActiveView} />}
-
+        {activeView === 'overview' && <AdminOverview stats={stats} systemEvents={systemEvents} onNavigate={setActiveView} />}
         {activeView === 'users' && <UsersView filteredUsers={filteredUsers} searchQuery={searchQuery} onSearchChange={setSearchQuery} />}
-
         {activeView === 'content' && <ContentView jobs={jobs} projects={projects} />}
 
         {activeView === 'jobs' && (
@@ -177,45 +225,46 @@ export default function AdminDashboard() {
         )}
 
         {activeView === 'payments' && (
-          <EmptyAdminPanel icon={DollarSign} title="Payments" description={`Payment volume is trending toward BD ${stats?.paymentVol?.toLocaleString() || '0'} over the current planning horizon.`} />
+          <PaymentAuditView stats={stats} paymentWebhookEvents={paymentWebhookEvents} />
         )}
 
         {activeView === 'disputes' && (
-          <div className="bg-white rounded-xl border-2 border-[#00cffd]/10 shadow-sm overflow-hidden dark:bg-[#0e1a2b]">
-            <div className="p-6 border-b border-[#00cffd]/10">
+          <div className="overflow-hidden rounded-xl border-2 border-[#00cffd]/10 bg-white shadow-sm dark:bg-[#0e1a2b]">
+            <div className="border-b border-[#00cffd]/10 p-6">
               <h2 className="text-xl font-bold text-gray-900">Open Disputes</h2>
-              <p className="text-sm text-gray-600 mt-1">Resolve platform disputes and manage held funds.</p>
+              <p className="mt-1 text-sm text-gray-600">Resolve platform disputes and manage held funds.</p>
             </div>
             {disputes.length > 0 ? (
               <div className="divide-y divide-[#00cffd]/5">
-                {disputes.map((item) => (
-                  <div key={item.id} className="p-6 flex items-start justify-between gap-4">
+                {disputes.map(item => (
+                  <div key={item.id} className="flex items-start justify-between gap-4 p-6">
                     <div>
                       <p className="text-sm font-semibold text-gray-900">{item.reason || 'Dispute'}</p>
-                      <p className="text-sm text-gray-500 mt-1">{item.details || 'Pending review'}</p>
-                      <p className="text-xs text-gray-400 mt-2">{item.contracts?.title || 'Contract'}{item.amount_disputed ? ` · BD ${Number(item.amount_disputed).toLocaleString('en-BH')}` : ''}</p>
+                      <p className="mt-1 text-sm text-gray-500">{item.details || 'Pending review'}</p>
+                      <p className="mt-2 text-xs text-gray-400">
+                        {item.contracts?.title || 'Contract'}
+                        {item.amount_disputed ? ` · BD ${Number(item.amount_disputed).toLocaleString('en-BH')}` : ''}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" loading={disputeActionId === `${item.id}:release`} onClick={() => resolveDispute(item.id, 'release')}>Release Funds</Button>
-                      <Button size="sm" variant="outline" loading={disputeActionId === `${item.id}:refund`} onClick={() => resolveDispute(item.id, 'refund')} className="text-red-700 border-red-300 hover:bg-red-50">Refund</Button>
+                      <Button size="sm" variant="outline" loading={disputeActionId === `${item.id}:refund`} onClick={() => resolveDispute(item.id, 'refund')} className="border-red-300 text-red-700 hover:bg-red-50">Refund</Button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Scale className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Open Disputes</h3>
+              <div className="py-12 text-center">
+                <Scale className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                <h3 className="mb-2 text-lg font-semibold text-gray-900">No Open Disputes</h3>
                 <p className="text-gray-600">All disputes have been resolved.</p>
               </div>
             )}
           </div>
         )}
 
-        {activeView === 'analytics' && <AnalyticsView stats={stats} />}
+        {activeView === 'analytics' && <AnalyticsView stats={stats} systemEvents={systemEvents} sensitiveEvents={sensitiveEvents} />}
       </div>
     </DashboardLayout>
   )
 }
-
-
