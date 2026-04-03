@@ -123,6 +123,25 @@ function buildDemoLoginHref({ email, password, path, role }) {
   return `/login?${params.toString()}`
 }
 
+function resetDemoGuideState(role) {
+  if (typeof window === 'undefined') return
+
+  const normalizedRole = String(role || '').toLowerCase()
+  const allRoles = ['admin', 'employer', 'seeker', 'freelancer']
+
+  window.sessionStorage.setItem('ch-demo-journey-active', '1')
+
+  allRoles.forEach((roleKey) => {
+    window.sessionStorage.removeItem(`ch-demo-guide:${roleKey}`)
+    window.sessionStorage.removeItem(`ch-demo-guide-steps:${roleKey}`)
+  })
+
+  if (normalizedRole) {
+    window.sessionStorage.removeItem(`ch-demo-guide:${normalizedRole}`)
+    window.sessionStorage.removeItem(`ch-demo-guide-steps:${normalizedRole}`)
+  }
+}
+
 function PublicHeader() {
   return (
     <header className="site-header">
@@ -167,10 +186,7 @@ export default function TestAccountsPage() {
   }
 
   const launchDemoJourney = (target) => {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem('ch-demo-journey-active', '1')
-    }
-
+    resetDemoGuideState(target.role)
     router.push(buildDemoLoginHref(target))
   }
 

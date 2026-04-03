@@ -24,32 +24,40 @@ const DEMO_GUIDES = {
     title: 'Employer walkthrough',
     focus: 'Hiring pipeline and candidate quality',
     steps: [
-      { id: 'overview', label: 'Open the main dashboard and explain active roles and hiring visibility.' },
-      { id: 'candidates', label: 'Move to candidates to highlight fit scores, comparisons, and interview progression.' },
+      { id: 'overview', label: 'Open the main dashboard and explain active roles, pipeline health, and hiring visibility.' },
+      { id: 'jobs', label: 'Move to Job Posts to show the active openings and the state of each hiring stream.' },
+      { id: 'candidates', label: 'Open Candidate Comparison to highlight fit scores, matched strengths, and interview progression.' },
+      { id: 'analytics', label: 'Finish in Analytics to summarize performance trends and decision-support insights.' },
     ],
   },
   seeker: {
     title: 'Job seeker walkthrough',
     focus: 'Saved jobs, applications, and smart matches',
     steps: [
-      { id: 'overview', label: 'Start on the dashboard to show saved jobs and application activity.' },
-      { id: 'matches', label: 'Open Smart Matches to explain why roles are ranked this way.' },
+      { id: 'overview', label: 'Start on the dashboard to show saved jobs, activity, and current application momentum.' },
+      { id: 'search', label: 'Open Job Search to show discovery filters and live opportunities.' },
+      { id: 'apps', label: 'Move to Applications to explain interview stages and active application tracking.' },
+      { id: 'matches', label: 'Finish on Smart Matches to explain why roles are ranked this way and what drives fit.' },
     ],
   },
   freelancer: {
     title: 'Freelancer walkthrough',
     focus: 'Proposal-to-delivery lifecycle',
     steps: [
-      { id: 'proposals', label: 'Start with proposals to show pending, accepted, and rejected states.' },
-      { id: 'earnings', label: 'Open earnings to explain milestones, escrow, and released balance.' },
+      { id: 'browse', label: 'Start in Browse Projects to show how freelancers discover relevant client work.' },
+      { id: 'proposals', label: 'Move to Proposals to show pending, accepted, and rejected submission states.' },
+      { id: 'projects', label: 'Open Active Projects to explain live delivery work and milestone progress.' },
+      { id: 'earnings', label: 'Finish in Earnings & Escrow to explain held funds, released balance, and payout visibility.' },
     ],
   },
   admin: {
     title: 'Admin walkthrough',
     focus: 'Platform oversight and issue resolution',
     steps: [
-      { id: 'overview', label: 'Start on overview to show platform totals and activity signals.' },
-      { id: 'disputes', label: 'Open disputes to show the operational resolution workflow.' },
+      { id: 'overview', label: 'Start on Overview to show platform totals, role distribution, and activity signals.' },
+      { id: 'users', label: 'Move to User Management to show account visibility and role governance.' },
+      { id: 'payments', label: 'Open Payments to review subscription and transaction oversight.' },
+      { id: 'disputes', label: 'Finish in Disputes to show the operational resolution workflow.' },
     ],
   },
 }
