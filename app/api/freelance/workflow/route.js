@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createRouteClient } from '@/lib/supabaseServer'
 import { createAdminClient } from '@/lib/supabaseAdmin'
+import { sendTransactionalEmail } from '@/lib/email'
+import { renderMilestoneReviewedEmail } from '@/lib/engagementEmails'
 
 async function getCurrentProfile(supabase) {
   const {
@@ -105,6 +107,44 @@ async function refundHeldEscrow(adminClient, contractId) {
   }
 }
 
+async function releaseMilestoneEscrow(adminClient, milestoneId) {
+  const { data: escrowRows } = await adminClient
+    .from('escrow')
+    .select('id, amount, to_user_id')
+    .eq('milestone_id', milestoneId)
+    .in('status', ['held', 'disputed'])
+
+  if (!escrowRows?.length) return { releasedAmount: 0, recipientId: null }
+
+  const releasedAt = new Date().toISOString()
+
+  await adminClient
+    .from('escrow')
+    .update({ status: 'released', released_at: releasedAt })
+    .in('id', escrowRows.map((row) => row.id))
+
+  const releasedAmount = escrowRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  const recipientId = escrowRows[0]?.to_user_id || null
+
+  if (recipientId && releasedAmount > 0) {
+    const { data: freelancerProfile } = await adminClient
+      .from('freelancer_profiles')
+      .select('wallet_balance, total_earned')
+      .eq('id', recipientId)
+      .single()
+
+    await adminClient
+      .from('freelancer_profiles')
+      .update({
+        wallet_balance: Number(freelancerProfile?.wallet_balance || 0) + releasedAmount,
+        total_earned: Number(freelancerProfile?.total_earned || 0) + releasedAmount,
+      })
+      .eq('id', recipientId)
+  }
+
+  return { releasedAmount, recipientId }
+}
+
 export async function POST(request) {
   try {
     const supabase = createRouteClient()
@@ -206,6 +246,76 @@ export async function POST(request) {
       )
 
       return NextResponse.json({ success: true })
+    }
+
+    if (action === 'approve_milestone') {
+      const { milestoneId } = body
+      if (!milestoneId) {
+        return NextResponse.json({ error: 'milestoneId is required.' }, { status: 400 })
+      }
+
+      const { data: milestone } = await adminClient
+        .from('milestones')
+        .select(`
+          id,
+          title,
+          status,
+          contract_id,
+          contracts!inner(
+            id,
+            title,
+            client_id,
+            freelancer_id
+          )
+        `)
+        .eq('id', milestoneId)
+        .single()
+
+      if (!milestone) {
+        return NextResponse.json({ error: 'Milestone not found.' }, { status: 404 })
+      }
+
+      if (milestone.contracts.client_id !== actor.id) {
+        return NextResponse.json({ error: 'Only the client can approve this milestone.' }, { status: 403 })
+      }
+
+      await adminClient
+        .from('milestones')
+        .update({ status: 'approved' })
+        .eq('id', milestoneId)
+
+      const { releasedAmount } = await releaseMilestoneEscrow(adminClient, milestoneId)
+
+      await notifyUsers(
+        adminClient,
+        [milestone.contracts.freelancer_id],
+        'Milestone approved',
+        `${actor.full_name || 'Your client'} approved "${milestone.title}" for ${milestone.contracts.title}.`,
+        '/dashboard/freelancer'
+      )
+
+      const { data: freelancerProfile } = await adminClient
+        .from('profiles')
+        .select('full_name')
+        .eq('id', milestone.contracts.freelancer_id)
+        .single()
+
+      const { data: freelancerAuth } = await adminClient.auth.admin.getUserById(milestone.contracts.freelancer_id)
+
+      if (freelancerAuth?.user?.email) {
+        await sendTransactionalEmail({
+          to: freelancerAuth.user.email,
+          subject: `Milestone approved: ${milestone.title}`,
+          html: renderMilestoneReviewedEmail({
+            freelancerName: freelancerProfile.full_name,
+            milestoneTitle: milestone.title,
+            contractTitle: milestone.contracts.title,
+            outcome: releasedAmount > 0 ? 'released' : 'approved',
+          }),
+        })
+      }
+
+      return NextResponse.json({ success: true, releasedAmount })
     }
 
     if (action === 'resolve_dispute') {

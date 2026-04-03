@@ -1,5 +1,8 @@
 import { createRouteClient } from '@/lib/supabaseServer'
+import { createAdminClient } from '@/lib/supabaseAdmin'
 import { scoreJobForSeeker } from '@/lib/jobMatching'
+import { sendTransactionalEmail } from '@/lib/email'
+import { renderApplicationReceivedEmail, renderApplicationStatusEmail } from '@/lib/engagementEmails'
 
 /**
  * GET /api/applications
@@ -59,6 +62,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const supabase = createRouteClient()
+    const adminClient = createAdminClient()
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -101,6 +105,36 @@ export async function POST(request) {
     // Increment job applications_count
     await supabase.from('jobs').update({ applications_count: job?.applications_count + 1 }).eq('id', job_id)
 
+    if (job?.employer_id) {
+      await adminClient.from('notifications').insert({
+        user_id: job.employer_id,
+        type: 'application',
+        title: 'New job application',
+        body: `${profile?.full_name || 'A candidate'} applied for ${job?.title || 'your role'}.`,
+        link: '/dashboard/employer',
+      })
+
+      const { data: employerProfile } = await adminClient
+        .from('profiles')
+        .select('full_name')
+        .eq('id', job.employer_id)
+        .single()
+
+      const { data: employerAuth } = await adminClient.auth.admin.getUserById(job.employer_id)
+
+      if (employerAuth?.user?.email) {
+        await sendTransactionalEmail({
+          to: employerAuth.user.email,
+          subject: `New application for ${job?.title || 'your role'}`,
+          html: renderApplicationReceivedEmail({
+            seekerName: profile?.full_name,
+            jobTitle: job?.title,
+            employerName: employerProfile.full_name,
+          }),
+        })
+      }
+    }
+
     return Response.json({ success: true, data }, { status: 201 })
 
   } catch (error) {
@@ -116,6 +150,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const supabase = createRouteClient()
+    const adminClient = createAdminClient()
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -123,6 +158,22 @@ export async function PATCH(request) {
 
     const validStatuses = ['pending','reviewed','shortlisted','interview','offered','hired','rejected']
     if (!validStatuses.includes(status)) return Response.json({ error: 'Invalid status' }, { status: 400 })
+
+    const { data: actorProfile } = await supabase
+      .from('profiles')
+      .select('id, role, full_name')
+      .eq('id', session.user.id)
+      .single()
+
+    const { data: currentApplication } = await adminClient
+      .from('applications')
+      .select('id, seeker_id, jobs!inner(title, employer_id)')
+      .eq('id', id)
+      .single()
+
+    if (!currentApplication || currentApplication.jobs?.employer_id !== session.user.id) {
+      return Response.json({ error: 'Application not found for this employer' }, { status: 404 })
+    }
 
     const { data, error } = await supabase
       .from('applications')
@@ -132,6 +183,45 @@ export async function PATCH(request) {
       .single()
 
     if (error) throw error
+
+    const { data: applicationDetails } = await adminClient
+      .from('applications')
+      .select(`
+        id,
+        status,
+        employer_notes,
+        seeker_id,
+        jobs(title, employer_id),
+        profiles!applications_seeker_id_fkey(full_name)
+      `)
+      .eq('id', id)
+      .single()
+
+    if (applicationDetails?.seeker_id) {
+      await adminClient.from('notifications').insert({
+        user_id: applicationDetails.seeker_id,
+        type: 'application',
+        title: 'Application status updated',
+        body: `Your application for ${applicationDetails.jobs?.title || 'a role'} is now ${status}.`,
+        link: '/dashboard/seeker',
+      })
+
+      const { data: seekerAuth } = await adminClient.auth.admin.getUserById(applicationDetails.seeker_id)
+
+      if (seekerAuth?.user?.email) {
+        await sendTransactionalEmail({
+          to: seekerAuth.user.email,
+          subject: `Application update: ${applicationDetails.jobs?.title || 'ConnectHub role'}`,
+          html: renderApplicationStatusEmail({
+            seekerName: applicationDetails.profiles.full_name,
+            jobTitle: applicationDetails.jobs?.title,
+            status,
+            employerName: actorProfile?.full_name,
+            employerNotes: employer_notes,
+          }),
+        })
+      }
+    }
 
     return Response.json({ success: true, data })
 

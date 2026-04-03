@@ -1,4 +1,5 @@
 import PublicHeader from '@/components/marketing/PublicHeader'
+import PublicFooter from '@/components/marketing/PublicFooter'
 import {
   AudienceSection,
   ContactSection,
@@ -23,6 +24,7 @@ export default function HomePage() {
         <TestimonialsSection />
         <ContactSection />
       </main>
+      <PublicFooter />
     </div>
   )
 }

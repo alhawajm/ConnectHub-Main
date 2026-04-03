@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { compareApplicationsForJob, getMatchTone } from '@/lib/jobMatching'
-import { formatDate, timeAgo, cn } from '@/lib/utils'
+import { formatBD, formatDate, timeAgo, cn } from '@/lib/utils'
 import { PageHeader, StatCard, DCard, DCardHeader, SectionTitle, EmptyPlaceholder, BarChart } from '@/components/dashboard/SharedComponents'
 import { StatusBadge, Avatar, useToast, Badge } from '@/components/ui/Components'
 import Button from '@/components/ui/Button'
@@ -13,6 +13,7 @@ import {
   Briefcase,
   CheckCircle2,
   Eye,
+  FileText,
   LayoutDashboard,
   Pencil,
   Plus,
@@ -22,10 +23,13 @@ import {
   Zap,
 } from 'lucide-react'
 
-export function EmployerOverviewPage({ jobs, applications, onNavigate }) {
+export function EmployerOverviewPage({ jobs, applications, contracts = [], milestones = [], onApproveMilestone, onNavigate }) {
   const active = jobs.filter(job => job.status === 'active')
   const shortlisted = applications.filter(application => application.status === 'shortlisted')
   const hired = applications.filter(application => application.status === 'hired')
+  const reviewMilestones = milestones
+    .filter((milestone) => milestone.status === 'submitted')
+    .slice(0, 3)
 
   return (
     <div>
@@ -39,7 +43,7 @@ export function EmployerOverviewPage({ jobs, applications, onNavigate }) {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="flex flex-col gap-6 lg:col-span-2">
           <DCard noPad>
             <DCardHeader
               title="Recent Applications"
@@ -85,6 +89,49 @@ export function EmployerOverviewPage({ jobs, applications, onNavigate }) {
                 )}
               </tbody>
             </table>
+          </DCard>
+
+          <DCard noPad>
+            <DCardHeader
+              title="Freelance Delivery Snapshot"
+              subtitle="Client-side milestone review and escrow release visibility"
+              action={<button onClick={() => onNavigate('messages')} className="text-sm font-medium text-[#0099cc] hover:underline">Open messages</button>}
+            />
+            <div className="grid gap-4 p-6 md:grid-cols-3">
+              <div className="soft-panel p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Active contracts</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{contracts.filter((contract) => contract.status === 'active').length}</p>
+              </div>
+              <div className="soft-panel p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Submitted milestones</p>
+                <p className="mt-2 text-2xl font-bold text-[#0099cc]">{reviewMilestones.length}</p>
+              </div>
+              <div className="soft-panel p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-gray-400">Contract value</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{formatBD(contracts.reduce((sum, contract) => sum + Number(contract.amount || 0), 0))}</p>
+              </div>
+            </div>
+            <div className="border-t border-[rgba(0,207,253,0.08)] px-6 py-5">
+              <SectionTitle>Milestones waiting for your review</SectionTitle>
+              <div className="space-y-3">
+                {reviewMilestones.length > 0 ? reviewMilestones.map((milestone) => (
+                  <div key={milestone.id} className="soft-panel flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{milestone.title}</p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {milestone.contracts?.title || 'Contract review'} · {formatBD(milestone.amount)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={milestone.status} />
+                      <Button size="sm" onClick={() => onApproveMilestone?.(milestone.id)}>Approve & Release</Button>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-sm text-gray-400">No milestone reviews are waiting right now.</p>
+                )}
+              </div>
+            </div>
           </DCard>
         </div>
 
@@ -367,6 +414,7 @@ export function EmployerPostJobPage({ profile, onCreated }) {
 
 export function EmployerCandidatesPage({ jobs, applications, onUpdateStatus }) {
   const [selectedJobId, setSelectedJobId] = useState('')
+  const [notesByApplication, setNotesByApplication] = useState({})
 
   useEffect(() => {
     if (!selectedJobId && jobs.length > 0) {
@@ -472,11 +520,27 @@ export function EmployerCandidatesPage({ jobs, applications, onUpdateStatus }) {
                         <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{application.comparisonBreakdown?.locationScore ?? 0}/10</p>
                       </div>
                     </div>
+
+                    <div className="mt-4">
+                      <Input
+                        label="Decision notes"
+                        as="textarea"
+                        rows={3}
+                        value={notesByApplication[application.id] ?? application.employer_notes ?? ''}
+                        onChange={(event) => setNotesByApplication((current) => ({
+                          ...current,
+                          [application.id]: event.target.value,
+                        }))}
+                        placeholder="Capture interview observations, strengths, or concerns..."
+                      />
+                    </div>
                   </div>
 
                   <div className="flex w-full flex-col gap-2 lg:w-44">
-                    <Button size="sm" variant="outline" onClick={() => onUpdateStatus(application.id, 'shortlisted')}>Shortlist</Button>
-                    <Button size="sm" variant="ghost" onClick={() => onUpdateStatus(application.id, 'interview')}>Move to Interview</Button>
+                    <Button size="sm" variant="outline" onClick={() => onUpdateStatus(application.id, 'shortlisted', notesByApplication[application.id] ?? application.employer_notes ?? '')}>Shortlist</Button>
+                    <Button size="sm" variant="ghost" onClick={() => onUpdateStatus(application.id, 'interview', notesByApplication[application.id] ?? application.employer_notes ?? '')}>Move to Interview</Button>
+                    <Button size="sm" variant="ghost" onClick={() => onUpdateStatus(application.id, 'offered', notesByApplication[application.id] ?? application.employer_notes ?? '')}>Send Offer</Button>
+                    <Button size="sm" onClick={() => onUpdateStatus(application.id, 'hired', notesByApplication[application.id] ?? application.employer_notes ?? '')}>Mark Hired</Button>
                   </div>
                 </div>
               </DCard>

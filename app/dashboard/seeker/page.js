@@ -18,6 +18,7 @@ import {
   SeekerGuidancePage,
   SeekerMatchesPage,
   SeekerOverviewPage,
+  SeekerSavedJobsPage,
   SeekerSearchPage,
 } from '@/components/dashboard/seeker/views'
 import { Search } from 'lucide-react'
@@ -146,7 +147,7 @@ export default function SeekerDashboard() {
       case 'apps':
         return <SeekerApplicationsPage applications={applications} onNavigate={setActivePage} />
       case 'saved':
-        return <EmptyPlaceholder icon={Search} title="Saved Jobs" description="Jobs you bookmark will appear here." action={<Button size="sm" onClick={() => setActivePage('search')}>Browse Jobs</Button>} />
+        return <SeekerSavedJobsPage savedJobs={savedJobs} onNavigate={setActivePage} />
       case 'matches':
         return <SeekerMatchesPage recommendations={recommendations} onNavigate={setActivePage} />
       default:

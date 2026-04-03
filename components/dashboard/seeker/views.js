@@ -366,3 +366,45 @@ export function SeekerApplicationsPage({ applications, onNavigate }) {
     </div>
   )
 }
+
+export function SeekerSavedJobsPage({ savedJobs, onNavigate }) {
+  return (
+    <div>
+      <PageHeader icon={Bookmark} title="Saved Jobs" subtitle="Keep shortlisted opportunities in one place and jump back into active applications quickly" />
+      <div className="mb-6 grid grid-cols-1 gap-5 md:grid-cols-3">
+        <StatCard label="Saved Roles" value={savedJobs.length} subtitle="Bookmarked opportunities" icon={Bookmark} iconColor="#8b5cf6" />
+        <StatCard label="Ready to Review" value={savedJobs.filter((item) => item.jobs?.status === 'active').length} subtitle="Still actively hiring" icon={CheckCircle2} iconColor="#22c55e" />
+        <StatCard label="Locations" value={new Set(savedJobs.map((item) => item.jobs?.location).filter(Boolean)).size} subtitle="Across your bookmarks" icon={Briefcase} iconColor="#00cffd" />
+      </div>
+
+      <DCard noPad>
+        {savedJobs.length > 0 ? (
+          savedJobs.map((savedJob) => (
+            <ListRow key={savedJob.id}>
+              <Avatar name={savedJob.jobs?.title} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-gray-900 dark:text-white">{savedJob.jobs?.title || 'Saved role'}</p>
+                <p className="text-xs text-gray-400">
+                  {savedJob.jobs?.location || 'Bahrain'} · Saved {savedJob.created_at ? timeAgo(savedJob.created_at) : 'recently'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusBadge status={savedJob.jobs?.status || 'saved'} />
+                <Button size="sm" variant="outline" href={savedJob.jobs?.id ? `/jobs/${savedJob.jobs.id}` : undefined} onClick={!savedJob.jobs?.id ? () => onNavigate('search') : undefined}>
+                  View
+                </Button>
+              </div>
+            </ListRow>
+          ))
+        ) : (
+          <EmptyPlaceholder
+            icon={Bookmark}
+            title="No saved jobs yet"
+            description="Bookmark roles from Job Search to keep your shortlist organized here."
+            action={<Button size="sm" onClick={() => onNavigate('search')}>Browse Jobs</Button>}
+          />
+        )}
+      </DCard>
+    </div>
+  )
+}

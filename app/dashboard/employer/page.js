@@ -28,6 +28,8 @@ export default function EmployerDashboard() {
   const [profile, setProfile] = useState(null)
   const [jobs, setJobs] = useState([])
   const [applications, setApplications] = useState([])
+  const [contracts, setContracts] = useState([])
+  const [milestones, setMilestones] = useState([])
   const [activePage, setActivePage] = useState('overview')
   const [loading, setLoading] = useState(true)
 
@@ -40,13 +42,32 @@ export default function EmployerDashboard() {
 
     setUser(session.user)
 
-    const [{ data: employerProfile }, { data: jobData }] = await Promise.all([
+    const [{ data: employerProfile }, { data: jobData }, { data: contractData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', session.user.id).single(),
       supabase.from('jobs').select('*').eq('employer_id', session.user.id).order('created_at', { ascending: false }),
+      supabase
+        .from('contracts')
+        .select('*, client:profiles!contracts_client_id_fkey(full_name), freelancer:profiles!contracts_freelancer_id_fkey(full_name), projects(title)')
+        .eq('client_id', session.user.id)
+        .order('created_at', { ascending: false }),
     ])
 
     setProfile(employerProfile || null)
     setJobs(jobData || [])
+    setContracts(contractData || [])
+
+    const contractIds = (contractData || []).map((contract) => contract.id)
+    if (contractIds.length) {
+      const { data: milestoneData } = await supabase
+        .from('milestones')
+        .select('*, contracts(title)')
+        .in('contract_id', contractIds)
+        .order('created_at', { ascending: false })
+
+      setMilestones(milestoneData || [])
+    } else {
+      setMilestones([])
+    }
 
     if (!jobData?.length) {
       setApplications([])
@@ -84,11 +105,11 @@ export default function EmployerDashboard() {
     })
   ), [applications, jobs])
 
-  const updateApplicationStatus = async (id, status) => {
+  const updateApplicationStatus = async (id, status, employer_notes = '') => {
     const response = await fetch('/api/applications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, status, employer_notes }),
     })
 
     const payload = await response.json()
@@ -98,6 +119,23 @@ export default function EmployerDashboard() {
     }
 
     toast.success('Application updated')
+    await loadDashboardData()
+  }
+
+  const approveMilestone = async (milestoneId) => {
+    const response = await fetch('/api/freelance/workflow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve_milestone', milestoneId }),
+    })
+
+    const payload = await response.json()
+    if (!response.ok) {
+      toast.error(payload.error || 'Could not approve milestone')
+      return
+    }
+
+    toast.success(payload.releasedAmount ? 'Milestone approved and escrow released' : 'Milestone approved')
     await loadDashboardData()
   }
 
@@ -112,7 +150,16 @@ export default function EmployerDashboard() {
   const renderPage = () => {
     switch (activePage) {
       case 'overview':
-        return <EmployerOverviewPage jobs={jobs} applications={comparedApplications} onNavigate={setActivePage} />
+        return (
+          <EmployerOverviewPage
+            jobs={jobs}
+            applications={comparedApplications}
+            contracts={contracts}
+            milestones={milestones}
+            onApproveMilestone={approveMilestone}
+            onNavigate={setActivePage}
+          />
+        )
       case 'jobs':
         return <EmployerJobsPage jobs={jobs} onNavigate={setActivePage} onJobsChanged={loadDashboardData} />
       case 'post-job':
